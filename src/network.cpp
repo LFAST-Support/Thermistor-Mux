@@ -1,6 +1,7 @@
 #include "network.h"
 //#include <Arduino.h>
-#include <Ethernet.h>
+#include <NativeEthernet.h>
+
 
 #define csPin 0
 #define dev_MAC {0x0, 0x0, 0x0, 0x0, 0x0, 0x0}

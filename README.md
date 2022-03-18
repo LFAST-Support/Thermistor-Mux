@@ -2,7 +2,7 @@
 Teensy 4.1 Thermistor Mux Firmware
 
 ## Dependencies
-* Arduino.h \n
+* Arduino.h 
 * Ethernet.h 
 * SPI.h
 * TBD

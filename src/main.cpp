@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "teensySPI.h"
 #include "network.h"
+#include <avr/interrupt.h>
 //#include <InternalTemperature.h>
 
 /*
@@ -26,6 +27,10 @@ const int mosfet[32] = {0,1,2,3,4,5,6,7,8,9,24,25,26,27,28,29,30,31,
 
 
 void setup() {
+
+  sei();
+
+  initSPI();
   Serial.begin(9600);
 
 
@@ -42,14 +47,11 @@ void setup() {
 
   initSPI(); //Enable teensy command of ADC chip
   initNetwork(); //Ethernet enable
-
-  //Set analog parameters
-  analogReadResolution(12); // 10-bits is default, 12 is max.  
-  analogReadAveraging(16);  //Set ADC to average 16 reading?
-
 }
 
 void loop() {
+
+  
 
   float rawVoltage;
   float temp;
@@ -70,8 +72,11 @@ void loop() {
       Serial.println(rawVoltage);
 
       //INW: Print to a file or directory of some sort, need to find out what sort of network this will be connected to.
-
     }
+
+    readInternalTemp();
 
 //Convert raw analog input into temp; refer to appropriate datasheet of thermistor
 }
+
+ISR()

@@ -19,7 +19,9 @@ Command type                         - CMD[1:0]
 
 #define RESTART B0110100
 #define STANDBY B01101100
-#define CONFIG_ADC B01000110  //Command byte
+#define COMMAND2_ADC B01011010
+#define ADC_TEMP_MUX_CONFIG 0xDE 
+#define COMMAND1_ADC B01000110  //Command byte
                              //      01 : Device address
                              //    0001 : Register address 
                              //      10 : Incremental write; starting at register 0x1
@@ -66,13 +68,10 @@ OffsetCal & GainCal registers not used??
 
 
 
-
-                            
-
+SPISettings settingsA(16000000, LSBFIRST, SPI_MODE0);
 
 void initSPI() {
 
-    SPISettings settingsA(16000000, LSBFIRST, SPI_MODE0);
   
     SPI.setCS(CS);
     pinMode(CS, OUTPUT); // Set CS pin to output 
@@ -87,7 +86,7 @@ void initSPI() {
     SPI.beginTransaction(settingsA);
     digitalWrite(CS, LOW); // Set CS to Low to begin data transfer
 
-    SPI.transfer(CONFIG_ADC); //Send some ADC Command byte w/ adress or fast command
+    SPI.transfer(COMMAND1_ADC); //Send some ADC Command byte w/ adress or fast command
     SPI.transfer(CONFIG0_SET);
     SPI.transfer(CONFIG1_SET);
     SPI.transfer(CONFIG2_SET);
@@ -100,4 +99,21 @@ void initSPI() {
 }
 
 
+void readInternalTemp() {
 
+    SPI.beginTransaction(settingsA);
+    digitalWrite(CS, LOW);
+
+    SPI.transfer(COMMAND2_ADC);         //Command byte - set register address to 0x06; MUX Register
+    SPI.transfer(ADC_TEMP_MUX_CONFIG);  //Set Mux register to read internal ADC temp
+    SPI.transfer(RESTART);              //Restart ADC
+
+    // Read temperature
+
+    SPI.transfer(COMMAND2_ADC);         //Command byte -  set register address to 0x06; Mux Register
+    SPI.transfer(MUX_SET);              //Set Mux to original settings; CH0 & CH1 inputs
+    SPI.transfer(RESTART);              //Restart ADC
+
+    digitalWrite(CS, LOW);
+    SPI.endTransaction();
+}

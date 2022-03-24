@@ -4,5 +4,7 @@
 #define NETWORK_H
 
 bool initNetwork();
+void printData(float);
+
 
 #endif

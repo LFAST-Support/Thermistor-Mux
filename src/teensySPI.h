@@ -4,6 +4,7 @@
 #define    TEENSYSPI_H
 
 void initSPI();
-void readInternalTemp();
+uint32_t readInternalTemp();
+uint32_t read_ADCDATA();
 
 #endif

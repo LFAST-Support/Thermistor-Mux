@@ -2,19 +2,22 @@
 #include "teensySPI.h"
 #include "network.h"
 #include <avr/interrupt.h>
+#include <SPI.h>
 //#include <InternalTemperature.h>
 
 /*
 Questions:
-1) What kind of network will this be connected to?
+1) What kind of network will this be connected to? MQTT
 2) ADC to average 16 reading; is that referring to the ADC chip itself?
 3) 
 
 */
 
-
+#define CS 10
 #define RAW_DATA 23
 #define SOME_CALCULATION 0
+#define INTERRUPT_PIN 23
+
 
 
 // Array representing 32 Mosfets
@@ -25,58 +28,62 @@ Questions:
 const int mosfet[32] = {0,1,2,3,4,5,6,7,8,9,24,25,26,27,28,29,30,31,
                         32,36,37,40,41,14,15,16,17,18,19,20,21,22};
 
+//volatile uint32_t thermistorData;
+float thermistor_temp;
+float internalADC_temp;
+
+/* ISR INW
+void ISR() {
+
+  SPI.beginTransaction(settingsA);
+  digitalWrite(CS, LOW); // Set CS to Low to begin data transfer
+  
+  if (int x = 1) { //If raw data is internal temp data
+    internalTemp = SPI.transfer32(READ_COMMAND);
+  }
+  else { //If raw data is thermistor data
+    thermistorData = SPI.transfer32(READ_COMMAND);
+  }
+  printData(thermistorData, internalTemp);
+}
+*/
+
 
 void setup() {
 
+  /* ISR INW
   sei();
+  pinMode(INTERRUPT_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), ISR, CHANGE);
+  */
 
-  initSPI();
   Serial.begin(9600);
 
-
-  // MOSFET Control I/O ports, set to Output. All MOSFETS turned off (pins set to LOW)
-  // Will probably replace with for loop in "loop" code.
+  // MOSFET digital control I/O ports, set to output. All MOSFETS turned off (pins set to LOW)
   // Slowest slew rate?? How
-
   for (int mosfetRef = 0; mosfetRef < 32; mosfetRef++) {
     pinMode(mosfet[mosfetRef], OUTPUT);  
     digitalWrite(mosfet[mosfetRef], LOW);
   }
   //INW: figure out how to set skew
 
-
   initSPI(); //Enable teensy command of ADC chip
   initNetwork(); //Ethernet enable
 }
 
 void loop() {
-
-  
-
-  float rawVoltage;
-  float temp;
   
     //Cycle through mofets
     for(int mosfetRef = 0; mosfetRef < 32; mosfetRef++) {
       digitalWrite(mosfet[mosfetRef], HIGH);
-      delay(100);
-      rawVoltage = analogRead(RAW_DATA);
-      temp = SOME_CALCULATION; // TBD
+      delay(10);
+      thermistor_temp = read_ADCDATA() + 1; //INW: convert thermistor raw data to temperature value
       digitalWrite(mosfet[mosfetRef], LOW);
-      //Print data to serial monitor for debugging 
-      Serial.print("Mosfet ");
-      Serial.println(mosfetRef + 1);
-      Serial.print("Temp = ");
-      Serial.println(temp);
-      Serial.print("Voltage = ");
-      Serial.println(rawVoltage);
-
-      //INW: Print to a file or directory of some sort, need to find out what sort of network this will be connected to.
-    }
-
-    readInternalTemp();
-
-//Convert raw analog input into temp; refer to appropriate datasheet of thermistor
+      printData(thermistor_temp);
+    } 
+    internalADC_temp = ((0.00133 * readInternalTemp()) - 267.146); //Temperature sensor tranfer function(see datasheet eq. 5-1)
+    printData(internalADC_temp);
 }
 
-ISR()
+
+

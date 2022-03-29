@@ -48,7 +48,6 @@ void ISR() {
 }
 */
 
-
 void setup() {
 
   /* ISR INW
@@ -69,16 +68,23 @@ void setup() {
 
   initTeensySPI(); //Enable teensy command of ADC chip
   initADC(); //Set up ADC with desired configuration
-  initNetwork(); //Ethernet enable
+  //initNetwork(); //Ethernet enable
 }
 
 void loop() {
     //Cycle through mofets
+    setThermistorMuxRead();
     for(int mosfetRef = 0; mosfetRef < 2; mosfetRef++) {
       digitalWrite(mosfet[mosfetRef], HIGH);
+      delay(1000);
+
+      Serial.print("Mosfet: ");
+      Serial.println(mosfetRef + 1);
+
+      thermistor_temp = read_ADCDATA() + 1; //INW: convert thermistor raw data to temperature value
       delay(5000);
-      //thermistor_temp = read_ADCDATA() + 1; //INW: convert thermistor raw data to temperature value
-      //digitalWrite(mosfet[mosfetRef], LOW);
+      
+      digitalWrite(mosfet[mosfetRef], LOW);
       //Serial.print("Thermistor ");
       //Serial.print(mosfetRef + 1);
       //Serial.print(": ");
@@ -86,11 +92,13 @@ void loop() {
       //printData("Thermistor Temp:", thermistor_temp);
     } 
     setADCInternalTempRead();
+    Serial.println("Internal ADC temperature: ");
     internalADC_temp = ((0.00133 * read_ADCDATA()) - 267.146); //Temperature sensor tranfer function(see datasheet eq. 5-1)
-    Serial.print("Internal ADC temperature: ");
-    Serial.println(internalADC_temp);;
+    delay(3000);
+    
+    //Serial.println(internalADC_temp);;
     //printData("ADC Internal Temp:", internalADC_temp);
-    //setThermistorMux();
+    //setThermistorMuxRead();
 }
 
 

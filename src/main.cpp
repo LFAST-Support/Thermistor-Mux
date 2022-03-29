@@ -29,8 +29,8 @@ const int mosfet[32] = {0,1,2,3,4,5,6,7,8,9,24,25,26,27,28,29,30,31,
                         32,36,37,40,41,14,15,16,17,18,19,20,21,22};
 
 //volatile uint32_t thermistorData;
-float thermistor_temp;
-float internalADC_temp;
+uint32_t thermistor_temp;
+uint32_t internalADC_temp;
 
 /* ISR INW
 void ISR() {
@@ -57,7 +57,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), ISR, CHANGE);
   */
 
-  Serial.begin(9600);
+  //Serial.begin(9600);
 
   // MOSFET digital control I/O ports, set to output. All MOSFETS turned off (pins set to LOW)
   // Slowest slew rate?? How
@@ -72,17 +72,25 @@ void setup() {
 }
 
 void loop() {
-  
     //Cycle through mofets
-    for(int mosfetRef = 0; mosfetRef < 32; mosfetRef++) {
+    for(int mosfetRef = 0; mosfetRef < 2; mosfetRef++) {
       digitalWrite(mosfet[mosfetRef], HIGH);
-      delay(10);
+      delay(5000);
       thermistor_temp = read_ADCDATA() + 1; //INW: convert thermistor raw data to temperature value
       digitalWrite(mosfet[mosfetRef], LOW);
-      printData(thermistor_temp);
+      //Serial.print("Thermistor ");
+      //Serial.print(mosfetRef + 1);
+      //Serial.print(": ");
+      //Serial.println(thermistor_temp);
+      //printData("Thermistor Temp:", thermistor_temp);
     } 
-    internalADC_temp = ((0.00133 * readInternalTemp()) - 267.146); //Temperature sensor tranfer function(see datasheet eq. 5-1)
-    printData(internalADC_temp);
+    setADCInternalTemp();
+    internalADC_temp = ((0.00133 * read_ADCDATA()) - 267.146); //Temperature sensor tranfer function(see datasheet eq. 5-1)
+    Serial.print("Internal ADC temperature: ");
+    Serial.println(internalADC_temp);;
+    //printData("ADC Internal Temp:", internalADC_temp);
+    setThermistorMux();
+    
 }
 
 

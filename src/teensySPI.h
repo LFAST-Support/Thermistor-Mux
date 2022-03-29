@@ -4,7 +4,8 @@
 #define    TEENSYSPI_H
 
 void initSPI();
-uint32_t readInternalTemp();
+void setADCInternalTemp();
+void setThermistorMux();
 uint32_t read_ADCDATA();
 
 #endif

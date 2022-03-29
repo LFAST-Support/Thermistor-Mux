@@ -39,6 +39,8 @@ bool initNetwork() {
 }
 
 
-void printData(float data) { //Convert digital data, print/ send through network payload. 
-      Serial.println(data, 4);
+void printData(char* name, float data) { //Convert digital data, print/ send through network payload. 
+    
+    Serial.print(name);
+    Serial.println(data, 4);
 }

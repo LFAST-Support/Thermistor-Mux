@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "teensySPI.h"
 #include "network.h"
+#include "set_ADC.h"
 #include <avr/interrupt.h>
 #include <SPI.h>
 //#include <InternalTemperature.h>
@@ -17,7 +18,6 @@ Questions:
 #define RAW_DATA 23
 #define SOME_CALCULATION 0
 #define INTERRUPT_PIN 23
-
 
 
 // Array representing 32 Mosfets
@@ -67,7 +67,8 @@ void setup() {
   }
   //INW: figure out how to set skew
 
-  initSPI(); //Enable teensy command of ADC chip
+  initTeensySPI(); //Enable teensy command of ADC chip
+  initADC(); //Set up ADC with desired configuration
   initNetwork(); //Ethernet enable
 }
 
@@ -76,21 +77,20 @@ void loop() {
     for(int mosfetRef = 0; mosfetRef < 2; mosfetRef++) {
       digitalWrite(mosfet[mosfetRef], HIGH);
       delay(5000);
-      thermistor_temp = read_ADCDATA() + 1; //INW: convert thermistor raw data to temperature value
-      digitalWrite(mosfet[mosfetRef], LOW);
+      //thermistor_temp = read_ADCDATA() + 1; //INW: convert thermistor raw data to temperature value
+      //digitalWrite(mosfet[mosfetRef], LOW);
       //Serial.print("Thermistor ");
       //Serial.print(mosfetRef + 1);
       //Serial.print(": ");
       //Serial.println(thermistor_temp);
       //printData("Thermistor Temp:", thermistor_temp);
     } 
-    setADCInternalTemp();
+    setADCInternalTempRead();
     internalADC_temp = ((0.00133 * read_ADCDATA()) - 267.146); //Temperature sensor tranfer function(see datasheet eq. 5-1)
     Serial.print("Internal ADC temperature: ");
     Serial.println(internalADC_temp);;
     //printData("ADC Internal Temp:", internalADC_temp);
-    setThermistorMux();
-    
+    //setThermistorMux();
 }
 
 

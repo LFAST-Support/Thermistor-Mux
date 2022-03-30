@@ -7,7 +7,7 @@
 void initADC();
 void setADCInternalTempRead();
 void setThermistorMuxRead();
-uint32_t read_ADCDATA();
+void read_ADCDATA();
 
 
 #endif

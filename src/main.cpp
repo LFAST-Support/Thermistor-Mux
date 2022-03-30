@@ -28,36 +28,18 @@ Questions:
 const int mosfet[32] = {0,1,2,3,4,5,6,7,8,9,24,25,26,27,28,29,30,31,
                         32,36,37,40,41,14,15,16,17,18,19,20,21,22};
 
-//volatile uint32_t thermistorData;
+//uint32_t thermistorData;
 uint32_t thermistor_temp;
 uint32_t internalADC_temp;
 
-/* ISR INW
-void ISR() {
-
-  SPI.beginTransaction(settingsA);
-  digitalWrite(CS, LOW); // Set CS to Low to begin data transfer
-  
-  if (int x = 1) { //If raw data is internal temp data
-    internalTemp = SPI.transfer32(READ_COMMAND);
-  }
-  else { //If raw data is thermistor data
-    thermistorData = SPI.transfer32(READ_COMMAND);
-  }
-  printData(thermistorData, internalTemp);
-}
-*/
-
 void setup() {
 
-  /* ISR INW
+  Serial.begin(9600); //For debugging
+
   sei();
   pinMode(INTERRUPT_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), ISR, CHANGE);
-  */
-
-  //Serial.begin(9600);
-
+  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), *read_ADCDATA, CHANGE);
+  
   // MOSFET digital control I/O ports, set to output. All MOSFETS turned off (pins set to LOW)
   // Slowest slew rate?? How
   for (int mosfetRef = 0; mosfetRef < 32; mosfetRef++) {
@@ -73,32 +55,32 @@ void setup() {
 
 void loop() {
     //Cycle through mofets
-    setThermistorMuxRead();
     for(int mosfetRef = 0; mosfetRef < 2; mosfetRef++) {
+
+      Serial.print("Thermistor ");
+      Serial.print(mosfetRef + 1);
+      Serial.print(": ");
+      setThermistorMuxRead();
+
       digitalWrite(mosfet[mosfetRef], HIGH);
       delay(1000);
 
-      Serial.print("Mosfet: ");
-      Serial.println(mosfetRef + 1);
-
-      thermistor_temp = read_ADCDATA() + 1; //INW: convert thermistor raw data to temperature value
-      delay(5000);
+      //thermistor_temp = read_ADCDATA() + 1; //INW: convert thermistor raw data to temperature value
       
       digitalWrite(mosfet[mosfetRef], LOW);
-      //Serial.print("Thermistor ");
-      //Serial.print(mosfetRef + 1);
-      //Serial.print(": ");
+
       //Serial.println(thermistor_temp);
       //printData("Thermistor Temp:", thermistor_temp);
-    } 
+
+    }
+    Serial.print("Internal ADC temperature: ");
     setADCInternalTempRead();
-    Serial.println("Internal ADC temperature: ");
-    internalADC_temp = ((0.00133 * read_ADCDATA()) - 267.146); //Temperature sensor tranfer function(see datasheet eq. 5-1)
-    delay(3000);
     
+    //internalADC_temp = ((0.00133 * read_ADCDATA()) - 267.146); //Temperature sensor tranfer function(see datasheet eq. 5-1)
+    delay(1000);
     //Serial.println(internalADC_temp);;
     //printData("ADC Internal Temp:", internalADC_temp);
-    //setThermistorMuxRead();
+    //setThermistorMuxRead()
 }
 
 

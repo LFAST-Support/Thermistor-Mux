@@ -7,16 +7,17 @@
 #define MISO 12
 #define SCK 13
 
-static SPISettings settingsA(20000000, MSBFIRST, SPI_MODE0);
+static SPISettings settingsA(5000000, MSBFIRST, SPI_MODE0);
 
 void initTeensySPI() {
 
     pinMode(CS, OUTPUT); // Set CS pin to output 
     digitalWrite(CS, HIGH); // Set CS to high
 
-    SPI.setMOSI(MOSI);
-    SPI.setMISO(MISO);
-    SPI.setSCK(SCK);
+    //SPI.setMOSI(MOSI);
+    //SPI.setMISO(MISO);
+    //SPI.setSCK(SCK);
+    delay(5000);
 
     SPI.begin();
     SPI.beginTransaction(settingsA);

@@ -196,8 +196,20 @@ void setThermistorMuxRead() {
 INW: Will take 32 bit output from ADC, extract 24 bits of temperature data, and 
 covert it to temperature value.  
 */
+
+/*
+Datasheet tranfer equation is for V_ref = 3.3 V & Gain = 1.
+    Temp (C) = [0.00133 * ADCDATA(LSB)] - 267.146
+We are implementing V_ref = 2.4 V & Gain = 2.
+    Temp (C) = [0.00133 * (V_ref/3.3V) * (ADCDATA(LSB)/2)] - 267.146
+*/
 void convert_internal_temp(uint32_t temp_data) {
-    Serial.printf("Internal ADC temp data: %d \n",temp_data);
+
+    float temp_Celsius = (temp_data & 0x000FFFFF);
+    temp_Celsius = (0.00133 * (2.4/3.3) * (temp_Celsius/2)) - 267.147;
+    float temp_Farenheit = (temp_Celsius * (9/5)) + 32;
+
+    Serial.printf("Internal ADC temp: %0.2f C = %0.2f F\n",temp_Celsius, temp_Farenheit);
 }
 
 /*

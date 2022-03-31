@@ -1,3 +1,35 @@
+
+/*******************************************************************************
+Copyright 2021
+Steward Observatory Engineering & Technical Services, University of Arizona
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or any later version.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <https://www.gnu.org/licenses/>.
+*******************************************************************************/
+
+/**
+ * @file network.cpp
+ * @author Rory Scobie (scobier@arizona.edu)
+ * @brief Implements networking specific functions, to handle Ethernet, MQTT,
+ * Sparkplug, and NTP functionality.
+ * @version (see VCM_VERSION in vcm_global.h)
+ * @date 2021-03-10
+ *
+ * @copyright Copyright (c) 2021
+ */
+
+/*
+Will try and implement Rory's Network configuration files for the teensy, it's not 
+fully present yet because i'm tyring to go througha nd understand what it's doing 
+as I paste it in this file.  
+*/
+
+
 #include "network.h"
 //#include <Arduino.h>
 #include <NativeEthernet.h>

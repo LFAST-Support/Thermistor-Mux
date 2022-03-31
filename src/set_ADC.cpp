@@ -205,9 +205,13 @@ We are implementing V_ref = 2.4 V & Gain = 2.
 */
 void convert_internal_temp(uint32_t temp_data) {
 
-    float temp_Celsius = (temp_data & 0x000FFFFF);
-    temp_Celsius = (0.00133 * (2.4/3.3) * (temp_Celsius/2)) - 267.147;
-    float temp_Farenheit = (temp_Celsius * (9/5)) + 32;
+
+    float temp_Celsius = (temp_data & 0x000FFFFF); //Mask status byte & sign bit, left with 24 bit temp data. 
+    /*
+    INW: Take into account sign bit DATA[24]
+    */
+    temp_Celsius = (0.00133 * (2.4/3.3) * (temp_Celsius/2)) - 267.147; //ADC internal temp tranfer function for V_ref = 2.4V & Gain = 2
+    float temp_Farenheit = (temp_Celsius * (9/5)) + 32; // Celsius to Farenheit conversion
 
     Serial.printf("Internal ADC temp: %0.2f C = %0.2f F\n",temp_Celsius, temp_Farenheit);
 }

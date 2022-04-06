@@ -52,7 +52,7 @@ CONVERSION type                           - CMD[1:0]
                                 //     00 : Prescaler AMCLK = MCLK (default)
                                 //   1010 : Oversampling ratio; OSR = 20480 (data rate is 60 samples/sec)
                                 //     00 : Reserved = '00'
-#define CONFIG2_SET 0b10001111  // Config2 register byte: 0x03
+#define CONFIG2_SET 0b10010111  // Config2 register byte: 0x03
                                 //     10 : Channel current x 1
                                 //    010 : Gain x 2
                                 //      1 : Analog input multiplexer auto-zeroing algorithm enabled
@@ -90,6 +90,10 @@ CONVERSION type                           - CMD[1:0]
                                 //    0101 : Register address 
                                 //      01 : Static Read   
 #define START_CONVERSION 0b01101000 
+
+#define V_REF_MUX_SET 0b10111100 // Multiplexer regiter byte: 0x06, set to read Vref
+                                //   1011 : REFIN+
+                                //   1100 : REFIN-  
 /*
 Scan Register & Timer registers not used
 OffsetCal & GainCal registers not used??
@@ -221,7 +225,7 @@ void convert_internal_temp(uint32_t masked_internal_data) {
         masked_internal_data = -((masked_internal_data ^ 0xFFFFFF) + 1);
     }  
 
-    float ADCtemp_Celsius = (0.00133 * (2.4/3.3) * (masked_internal_data)) - 267.147; //ADC internal temp tranfer function for V_ref = 2.4V & Gain = 2
+    float ADCtemp_Celsius = (0.00133 * (2.4/3.3) * (masked_internal_data/2)) - 267.147; //ADC internal temp tranfer function for V_ref = 2.4V & Gain = 2
     float ADCtemp_Farenheit = (ADCtemp_Celsius * (1.8)) + 32; // Celsius to Farenheit conversion
 
     Serial.printf("Internal ADC temperature: %0.2f C = %0.2f F\n", ADCtemp_Celsius, ADCtemp_Farenheit);
@@ -246,7 +250,7 @@ void convert_thermistor_temp(uint32_t masked_therm_data){
     }    
    
     //Converts ADC DATA output to measured voltage 
-    ADC_output_voltage  = (2.33 / pow(2,23)) * masked_therm_data;
+    ADC_output_voltage  = (2.33 / pow(2,23)) * masked_therm_data/2;
 
     //Voltage divider, solving for measured thermistace
     thermistance = (ADC_output_voltage*10000)/(2.33 - ADC_output_voltage);

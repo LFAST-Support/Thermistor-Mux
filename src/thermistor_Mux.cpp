@@ -63,9 +63,10 @@ void setup() {
   Upon recieving an interrupt from ADC(indicating new data is available in ADC),
   function is called to read data from ADC Data register.
   */
-  sei(); 
   pinMode(INTERRUPT_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), *read_ADCDATA, CHANGE);
+  //sei(); 
+
   
   // MOSFET digital control I/O ports, set to output. All MOSFETS turned off (pins set to LOW)
   // Slowest slew rate?? How
@@ -86,22 +87,18 @@ void loop() {
     Cycle through mofets; setting digital control pin high, calls on function that
     sets mux register to read thermistor inputs. 
     */
-    for(int mosfetRef = 0; mosfetRef < 1; mosfetRef++) {
+    for(int mosfetRef = 0; mosfetRef < 5; mosfetRef++) {
+      //sei();
       digitalWrite(mosfet[mosfetRef], HIGH);
-      //Serial.print("Thermistor ");
-      //Serial.print(mosfetRef + 1);
-      //Serial.print(": ");
+      Serial.printf("Thermistor %d ",(mosfetRef + 1));
       setThermistorMuxRead();
-      delay(100);
       digitalWrite(mosfet[mosfetRef], LOW);
-
-
     }
     /*
-    Calls on function that sets mux register to reat internal ADC temperature. 
+    Calls on function that sets mux register to read internal ADC temperature. 
     */
+    //sei();
     setADCInternalTempRead();
-    delay(100);
 }
 
 

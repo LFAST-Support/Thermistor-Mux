@@ -24,6 +24,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include "set_ADC.h"
 #include "SPI.h"
+#include <math.h>
 
 /*
 CONVERSION Byte CMD[7:0]
@@ -51,7 +52,7 @@ CONVERSION type                           - CMD[1:0]
                                 //     00 : Prescaler AMCLK = MCLK (default)
                                 //   1010 : Oversampling ratio; OSR = 20480 (data rate is 60 samples/sec)
                                 //     00 : Reserved = '00'
-#define CONFIG2_SET 0b10010111  // Config2 register byte: 0x03
+#define CONFIG2_SET 0b10001111  // Config2 register byte: 0x03
                                 //     10 : Channel current x 1
                                 //    010 : Gain x 2
                                 //      1 : Analog input multiplexer auto-zeroing algorithm enabled
@@ -96,6 +97,7 @@ OffsetCal & GainCal registers not used??
 
 //Data bytes for debugging
 volatile uint32_t temp_data;
+int myFlag = 0;
 
 /*
 Initializes ADC with desired settings(defined above). 
@@ -113,12 +115,6 @@ void initADC() {
     SPI.transfer(IRQ_SET);
     SPI.transfer(THERM_MUX_SET);
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer
-    /*
-    digitalWrite(CS, LOW);
-    SPI.transfer(START_CONVERSION);
-    digitalWrite(CS, HIGH);
-    */
-    delay(3000);
 }
 
 /*
@@ -126,19 +122,24 @@ Sets Mux inputs to internal temperature probes, then restarts conversion to gath
 */
 void  setADCInternalTempRead() {
 
+    cli();
+    myFlag = 0;
+    sei();
+
     digitalWrite(CS, LOW); //Set CS to Low to begin data transfer
-    //delay(5);
     SPI.transfer(POINT_MUX_WRITE); //Command byte - set register address to 0x06; MUX Register
     SPI.transfer(ADC_TEMP_MUX_SET); //Set Mux register to read internal ADC temp
-    digitalWrite(CS, HIGH); //Set CS to high to end data transfer
-    //delay(5);
-    
+    delay(1);
+    digitalWrite(CS, HIGH); //Set CS to high to end data transfer  
     
     digitalWrite(CS, LOW); //Set CS to Low to begin data transfer
-    //delay(5);
     SPI.transfer(START_CONVERSION); //Restart conversion fast command to gather new data. 
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer
-    //delay(5); 
+
+    while( myFlag == 0 ) { 
+        //Serial.println("No ADC interrupt."); //Do Nothing
+        delay(1);
+    }
 }
 
 /*
@@ -146,56 +147,66 @@ Sets Mux inputs to ch0/ch1; thermistors, then restarts conversion to gather new 
 */
 void setThermistorMuxRead() {
 
+    cli();
+    myFlag = 0;
+    sei();
+
     digitalWrite(CS, LOW); //Set CS to Low to begin data transfer
-    //delay(5);
     SPI.transfer(POINT_MUX_WRITE); //Command byte - set register address to 0x06; Mux Register
     SPI.transfer(THERM_MUX_SET); //Set Mux to original settings; CH0 & CH1 inputs
+    delay(1);
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer
-    //delay(5);
 
     digitalWrite(CS, LOW); //Set CS to Low to begin data transfer
-    //delay(5);
     SPI.transfer(START_CONVERSION); //Restart conversion fast command to gather new data. 
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer
-    //delay(5);
+
+    while( myFlag == 0 ) { 
+       // Serial.println("No mux interrupt."); //Do Nothing
+       delay(1);
+    }
 }
 
-/* 
-
-*/
  void read_ADCDATA() {
 
     digitalWrite(CS, LOW); //Set CS to Low to begin data transfer
     temp_data = SPI.transfer32(0x41000000); //Send read ADC_DATA register, 32 bit command, & saves output(status byte + 24 data bytes) on a variable. 
-    //Serial.println(temp_data);
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer
 
+    if (((temp_data & 0x00FFFFFF) >> 1) == 0x007FFFFF) {
+        Serial.print("Invalid temperature data: ");
+    }
     /*
-    Reads status of Mux register to determine source of output data. 
-    Output structure;0xXX(status byte)XX(Mux register read data)
-    0x1701: Mux register inputs are thermistors
-    0x17DE: Mux register inputs are internal temp probes. 
-    If/else statement then sends data to appropriate conversion function. 
+    Status byte generates two consecutive ADC data reads, due to a change in interrupt status bit
+    data bytes remain unchanged. 
+    Else if statement below limits data to one print. 
     */
-    digitalWrite(CS, LOW);//Set CS to Low to begin data transfer
-    uint16_t MUX_REG_STATUS = SPI.transfer16(0x5900);
-    if(MUX_REG_STATUS == 0x1701) {
-        convert_thermistor_temp(temp_data);
-    }
-    else if(MUX_REG_STATUS == 0x17DE) {
-        convert_internal_temp(temp_data);
-    }
-    else {
-        Serial.println("Invalid data return");
-    }
-    digitalWrite(CS, HIGH); //Set CS to high to end data transfer
-    delay(1000);
-}
+    else if ((temp_data & 0xFF000000) == 0x13000000) {
+        /*
+        Reads status of Mux register to determine source of output data. 
+        Output structure;0xXX(status byte)XX(Mux register read data)
+        0x1701: Mux register inputs are thermistors
+        0x17DE: Mux register inputs are internal temp probes. 
+        If/else statement then sends data to appropriate conversion function. 
+        */
+        digitalWrite(CS, LOW);//Set CS to Low to begin data transfer
+        uint16_t MUX_REG_STATUS = SPI.transfer16(0x5900);
+        digitalWrite(CS, HIGH); //Set CS to high to end data transfer
 
-/*
-INW: Will take 32 bit output from ADC, extract 24 bits of temperature data, and 
-covert it to temperature value.  
-*/
+        //Mask Status byte, ensure only data is sent to conversion functions. 
+        temp_data = (temp_data & 0x00FFFFFF);
+        if(MUX_REG_STATUS == 0x1701) {
+            convert_thermistor_temp(temp_data);
+        }
+        else if(MUX_REG_STATUS == 0x17DE) {
+            convert_internal_temp(temp_data);
+        }
+        else {
+            Serial.println("Invalid data return.");
+        }
+    } 
+    myFlag = 1;
+}
 
 /*
 Datasheet tranfer equation is for V_ref = 3.3 V & Gain = 1.
@@ -203,23 +214,56 @@ Datasheet tranfer equation is for V_ref = 3.3 V & Gain = 1.
 We are implementing V_ref = 2.4 V & Gain = 2.
     Temp (C) = [0.00133 * (V_ref/3.3V) * (ADCDATA(LSB)/2)] - 267.146
 */
-void convert_internal_temp(uint32_t temp_data) {
+void convert_internal_temp(uint32_t masked_internal_data) {
 
+     //Two's Complement conversion for negative ADC output data.
+    if(((masked_internal_data & 0x00FFFFFF) >> 23) == 1) {
+        masked_internal_data = -((masked_internal_data ^ 0xFFFFFF) + 1);
+    }  
 
-    float temp_Celsius = (temp_data & 0x000FFFFF); //Mask status byte & sign bit, left with 24 bit temp data. 
-    /*
-    INW: Take into account sign bit DATA[24]
-    */
-    temp_Celsius = (0.00133 * (2.4/3.3) * (temp_Celsius/2)) - 267.147; //ADC internal temp tranfer function for V_ref = 2.4V & Gain = 2
-    float temp_Farenheit = (temp_Celsius * (9/5)) + 32; // Celsius to Farenheit conversion
+    float ADCtemp_Celsius = (0.00133 * (2.4/3.3) * (masked_internal_data)) - 267.147; //ADC internal temp tranfer function for V_ref = 2.4V & Gain = 2
+    float ADCtemp_Farenheit = (ADCtemp_Celsius * (1.8)) + 32; // Celsius to Farenheit conversion
 
-    Serial.printf("Internal ADC temp: %0.2f C = %0.2f F\n",temp_Celsius, temp_Farenheit);
+    Serial.printf("Internal ADC temperature: %0.2f C = %0.2f F\n", ADCtemp_Celsius, ADCtemp_Farenheit);
+
+    delay(1000); //Delay to slow outflow of data for debugging
 }
 
 /*
-INW: Will take 32 bit output from ADC, extract 24 bits of temperature data, and 
-covert it to temperature value.  
+natural Log best fit equation from data table provided in data sheet:
+https://www.tme.eu/Document/32a31570f1c819f9b3730213e5eca259/TT7-10KC3-11.pdf
+
+T(C) = -24.03ln((2.715E-5)*R)
 */
-void convert_thermistor_temp(uint32_t temp_data){
-    Serial.printf("Mosfet 1 temp data: %d \n",temp_data);
+void convert_thermistor_temp(uint32_t masked_therm_data){
+
+    float ADC_output_voltage;
+    float thermistance;
+
+     //Two's Complement conversion for negative ADC output data.
+    if(((temp_data & 0x00FFFFFF) >> 23) == 1) { 
+        masked_therm_data = -((masked_therm_data ^ 0xFFFFFF) + 1);
+    }    
+   
+    //Converts ADC DATA output to measured voltage 
+    ADC_output_voltage  = (2.33 / pow(2,23)) * masked_therm_data;
+
+    //Voltage divider, solving for measured thermistace
+    thermistance = (ADC_output_voltage*10000)/(2.33 - ADC_output_voltage);
+
+    //Natural log best fit equation developed from graphed data table for 10K thermistor
+    float thermistor_temp_Celsius = -24.03*log(thermistance*2.715E-5);
+    /*//Quartic best fit equation developed from graphed data table for 10K thermistor
+    float thermistor_temp_Celsius = (2.818E-19*pow(thermistance,4)) - (1.982E-13*pow(thermistance, 3)) +
+                                    (4.594E-8*pow(thermistance, 2)) - (0.004021 * thermistance) + 84.02);
+    */
+    //Celsius to Farenheit conversion 
+    float thermistor_temp_Farenheit = (thermistor_temp_Celsius * (1.8)) + 32; 
+
+    Serial.printf("temperature: %0.2f C = %0.2f F\n", thermistor_temp_Celsius, thermistor_temp_Farenheit);
+    
+    //Serial.println((2.818E-19*pow(thermistance,4)) - (1.982E-13*pow(thermistance, 3)) +
+    //                (4.594E-8*pow(thermistance, 2)) - (0.004021 * thermistance) + 84.02);
+
+    delay(1000); //Delay to slow outflow of data for debugging
 }

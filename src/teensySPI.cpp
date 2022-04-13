@@ -40,7 +40,6 @@ void initTeensySPI() {
     SPI.setMOSI(MOSI);
     SPI.setMISO(MISO);
     SPI.setSCK(SCK);
-    delay(5000);
 
     SPI.begin();
     SPI.beginTransaction(settingsA);

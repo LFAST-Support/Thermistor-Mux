@@ -22,3 +22,17 @@ this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "thermistorCal.h"
+
+typedef struct Thermistance {
+    float cal_data;
+    float uncal_temp;
+    float cal_temp;
+} thermistance; 
+
+void cal_thermistor(float temp){
+    //While temperature is still dropping
+    //  Wait
+
+    
+
+}

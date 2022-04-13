@@ -25,15 +25,33 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "set_ADC.h"
 #include "SPI.h"
 #include <math.h>
+#include "thermistorMux_global.h"
 
-/*
-CONVERSION Byte CMD[7:0]
-Device Address(Hard Coded into device) - CMD[7:6] 
-Register Address/ Fast CONVERSION bits    - CMD[5:2]
-CONVERSION type                           - CMD[1:0]
-*/
 #define CS 10
 
+/*
+Resistance at 25 degrees C
+The beta coefficient of the thermistor (usually 3000-4000)
+*/
+#ifdef thermistor_10K
+    #define THERMISTORNOMINAL 10000
+    #define BCOEFFICIENT 2.514458134e-4 // = 1/3977, B = 3997 K
+#elif thermistor_2K 
+    #define THERMISTORNOMINAL 2200   
+    #define BCOEFFICIENT 2.544529262e-4 // = 1/3930, B = 3930 K
+#else 
+    #error A thermistor value must be defined.
+#endif
+
+// temp. for nominal resistance (almost always 25 C = 298.15 K)
+#define TEMPERATURENOMINAL 298.15   
+
+/*
+COMMAND Byte CMD[7:0]
+Device Address(Hard Coded into device) - CMD[7:6] 
+Register Address/ Fast COMMAND bits    - CMD[5:2]
+COMMAND type                           - CMD[1:0]
+*/
 #define STANDBY 0b01101100
 #define POINT_CONFIG0_WRITE 0b01000110 //Command byte: Incremental write starting at Config0 register
                                 //      01 : Device address
@@ -52,7 +70,7 @@ CONVERSION type                           - CMD[1:0]
                                 //     00 : Prescaler AMCLK = MCLK (default)
                                 //   1010 : Oversampling ratio; OSR = 20480 (data rate is 60 samples/sec)
                                 //     00 : Reserved = '00'
-#define CONFIG2_SET 0b10010111  // Config2 register byte: 0x03
+#define CONFIG2_SET 0b10001111  // Config2 register byte: 0x03
                                 //     10 : Channel current x 1
                                 //    010 : Gain x 2
                                 //      1 : Analog input multiplexer auto-zeroing algorithm enabled
@@ -90,7 +108,6 @@ CONVERSION type                           - CMD[1:0]
                                 //    0101 : Register address 
                                 //      01 : Static Read   
 #define START_CONVERSION 0b01101000 
-
 #define V_REF_MUX_SET 0b10111100 // Multiplexer regiter byte: 0x06, set to read Vref
                                 //   1011 : REFIN+
                                 //   1100 : REFIN-  
@@ -100,8 +117,8 @@ OffsetCal & GainCal registers not used??
 */
 
 //Data bytes for debugging
-volatile uint32_t temp_data;
-int myFlag = 0;
+volatile uint32_t temp_data_buff;
+//int myFlag = 0;
 
 /*
 Initializes ADC with desired settings(defined above). 
@@ -119,16 +136,16 @@ void initADC() {
     SPI.transfer(IRQ_SET);
     SPI.transfer(THERM_MUX_SET);
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer
+    delay(1000);
 }
 
 /*
 Sets Mux inputs to internal temperature probes, then restarts conversion to gather new data.
 */
 void  setADCInternalTempRead() {
-
-    cli();
-    myFlag = 0;
-    sei();
+    //cli();
+    //myFlag = 0;
+    //sei();
 
     digitalWrite(CS, LOW); //Set CS to Low to begin data transfer
     SPI.transfer(POINT_MUX_WRITE); //Command byte - set register address to 0x06; MUX Register
@@ -140,20 +157,15 @@ void  setADCInternalTempRead() {
     SPI.transfer(START_CONVERSION); //Restart conversion fast command to gather new data. 
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer
 
-    while( myFlag == 0 ) { 
-        //Serial.println("No ADC interrupt."); //Do Nothing
-        delay(1);
-    }
+    //sei();
 }
-
 /*
 Sets Mux inputs to ch0/ch1; thermistors, then restarts conversion to gather new data.
 */
 void setThermistorMuxRead() {
-
-    cli();
-    myFlag = 0;
-    sei();
+    //cli();
+   // myFlag = 0;
+    //sei();
 
     digitalWrite(CS, LOW); //Set CS to Low to begin data transfer
     SPI.transfer(POINT_MUX_WRITE); //Command byte - set register address to 0x06; Mux Register
@@ -165,27 +177,23 @@ void setThermistorMuxRead() {
     SPI.transfer(START_CONVERSION); //Restart conversion fast command to gather new data. 
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer
 
-    while( myFlag == 0 ) { 
-       // Serial.println("No mux interrupt."); //Do Nothing
-       delay(1);
-    }
+    //sei();
 }
 
- void read_ADCDATA() {
+float read_ADCDATA() {
 
     digitalWrite(CS, LOW); //Set CS to Low to begin data transfer
-    temp_data = SPI.transfer32(0x41000000); //Send read ADC_DATA register, 32 bit command, & saves output(status byte + 24 data bytes) on a variable. 
+    temp_data_buff = SPI.transfer32(0x41000000); //Send read ADC_DATA register, 32 bit command, & saves output(status byte + 24 data bytes) on a variable. 
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer
 
-    if (((temp_data & 0x00FFFFFF) >> 1) == 0x007FFFFF) {
-        Serial.print("Invalid temperature data: ");
+    if ((temp_data_buff & 0x00FFFFFF) == 0x007FFFFF) {
+        Serial.printf("Invalid temperature data.\n");
     }
     /*
-    Status byte generates two consecutive ADC data reads, due to a change in interrupt status bit
-    data bytes remain unchanged. 
-    Else if statement below limits data to one print. 
+    Status byte generates two consecutive ADC data reads, due to a change in interrupt status bit,
+    Data bytes remain unchanged, else if statement below limits data to one print. 
     */
-    else if ((temp_data & 0xFF000000) == 0x13000000) {
+    else { // if ((temp_data_buff & 0xFF000000) == 0x13000000) {
         /*
         Reads status of Mux register to determine source of output data. 
         Output structure;0xXX(status byte)XX(Mux register read data)
@@ -198,76 +206,74 @@ void setThermistorMuxRead() {
         digitalWrite(CS, HIGH); //Set CS to high to end data transfer
 
         //Mask Status byte, ensure only data is sent to conversion functions. 
-        temp_data = (temp_data & 0x00FFFFFF);
+        temp_data_buff = (temp_data_buff & 0x00FFFFFF);
         if(MUX_REG_STATUS == 0x1701) {
-            convert_thermistor_temp(temp_data);
+            return convert_thermistor_temp(temp_data_buff);
         }
         else if(MUX_REG_STATUS == 0x17DE) {
-            convert_internal_temp(temp_data);
+            return convert_internal_temp(temp_data_buff);
         }
         else {
             Serial.println("Invalid data return.");
+            return(0);
         }
     } 
-    myFlag = 1;
+    return(0);
 }
 
-/*
+/**
 Datasheet tranfer equation is for V_ref = 3.3 V & Gain = 1.
     Temp (C) = [0.00133 * ADCDATA(LSB)] - 267.146
 We are implementing V_ref = 2.4 V & Gain = 2.
     Temp (C) = [0.00133 * (V_ref/3.3V) * (ADCDATA(LSB)/2)] - 267.146
-*/
-void convert_internal_temp(uint32_t masked_internal_data) {
+**/
+float convert_internal_temp(uint32_t masked_internal_data) {
 
      //Two's Complement conversion for negative ADC output data.
     if(((masked_internal_data & 0x00FFFFFF) >> 23) == 1) {
         masked_internal_data = -((masked_internal_data ^ 0xFFFFFF) + 1);
-    }  
+    }
+    //ADC internal temp tranfer function for V_ref = 2.4V & Gain = 1  
+    float ADCtemp_Celsius = (0.00133 * (2.4/3.3) * (masked_internal_data)) - 267.146; 
+    //float ADCtemp_Farenheit = (ADCtemp_Celsius * (1.8)) + 32; // Celsius to Farenheit conversion
+    //Serial.print("Internal temp: ");
+    //Serial.println(ADCtemp_Celsius);
 
-    float ADCtemp_Celsius = (0.00133 * (2.4/3.3) * (masked_internal_data/2)) - 267.147; //ADC internal temp tranfer function for V_ref = 2.4V & Gain = 2
-    float ADCtemp_Farenheit = (ADCtemp_Celsius * (1.8)) + 32; // Celsius to Farenheit conversion
-
-    Serial.printf("Internal ADC temperature: %0.2f C = %0.2f F\n", ADCtemp_Celsius, ADCtemp_Farenheit);
-
-    delay(1000); //Delay to slow outflow of data for debugging
+    return(ADCtemp_Celsius);
 }
 
-/*
-natural Log best fit equation from data table provided in data sheet:
+/**
+Steinhart-Hart B coefficient provided in data sheet:
 https://www.tme.eu/Document/32a31570f1c819f9b3730213e5eca259/TT7-10KC3-11.pdf
 
-T(C) = -24.03ln((2.715E-5)*R)
-*/
-void convert_thermistor_temp(uint32_t masked_therm_data){
+    Simplified B parameter Steinhart-Hart equation:
+
+    1/T = (1/To) + (1/B)*ln(R/Ro) 
+
+    T = measured temperature (Kelvin)
+    To = room temperature (25 C = 298.15 K)
+    B = Beta Constant = 3997 K, provided in data sheet
+    R = measured resistance (thermistance)
+    Ro = resistance at room temperature (10K ohms)
+**/
+float convert_thermistor_temp(uint32_t masked_therm_data){
 
     float ADC_output_voltage;
     float thermistance;
 
-     //Two's Complement conversion for negative ADC output data.
-    if(((temp_data & 0x00FFFFFF) >> 23) == 1) { 
+    //Two's Complement conversion for negative ADC output data.
+    if(((temp_data_buff & 0x00FFFFFF) >> 23) == 1) { 
         masked_therm_data = -((masked_therm_data ^ 0xFFFFFF) + 1);
     }    
    
     //Converts ADC DATA output to measured voltage 
-    ADC_output_voltage  = (2.33 / pow(2,23)) * masked_therm_data/2;
-
+    ADC_output_voltage  = (2.33 / pow(2,23)) * masked_therm_data;
     //Voltage divider, solving for measured thermistace
     thermistance = (ADC_output_voltage*10000)/(2.33 - ADC_output_voltage);
+    float stein_temp_Celsius = (1/((1/TEMPERATURENOMINAL) + BCOEFFICIENT*log(thermistance/THERMISTORNOMINAL))) - 272.15;
+    //float stein_temp_Celsius = stein_temp_Kelvin - 272.15;
+    //float stein_temp_Farenheit = (stein_temp_Celsius * (1.8)) + 32; 
+    //Serial.println(stein_temp_Celsius);
 
-    //Natural log best fit equation developed from graphed data table for 10K thermistor
-    float thermistor_temp_Celsius = -24.03*log(thermistance*2.715E-5);
-    /*//Quartic best fit equation developed from graphed data table for 10K thermistor
-    float thermistor_temp_Celsius = (2.818E-19*pow(thermistance,4)) - (1.982E-13*pow(thermistance, 3)) +
-                                    (4.594E-8*pow(thermistance, 2)) - (0.004021 * thermistance) + 84.02);
-    */
-    //Celsius to Farenheit conversion 
-    float thermistor_temp_Farenheit = (thermistor_temp_Celsius * (1.8)) + 32; 
-
-    Serial.printf("temperature: %0.2f C = %0.2f F\n", thermistor_temp_Celsius, thermistor_temp_Farenheit);
-    
-    //Serial.println((2.818E-19*pow(thermistance,4)) - (1.982E-13*pow(thermistance, 3)) +
-    //                (4.594E-8*pow(thermistance, 2)) - (0.004021 * thermistance) + 84.02);
-
-    delay(1000); //Delay to slow outflow of data for debugging
+    return(stein_temp_Celsius);
 }

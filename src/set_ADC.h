@@ -31,9 +31,9 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 void initADC();
 void setADCInternalTempRead();
 void setThermistorMuxRead();
-void read_ADCDATA();
-void convert_internal_temp(uint32_t);
-void convert_thermistor_temp(uint32_t);
+float read_ADCDATA();
+float convert_internal_temp(uint32_t);
+float convert_thermistor_temp(uint32_t);
 
 
 #endif

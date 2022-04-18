@@ -21,4 +21,4 @@ this program. If not, see <https://www.gnu.org/licenses/>.
  * @copyright Copyright (c) 2022
  */
 
-void cal_thermistor(float temp);
+float cal_thermistor(float temp);

@@ -27,6 +27,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "teensySPI.h"
 #include "set_ADC.h"
 #include "thermistorMux_global.h"
+#include "thermistorCal.h"
 #include <avr/interrupt.h>
 #include <SPI.h>
 #include <stdio.h>
@@ -68,6 +69,7 @@ mosfet[31] = header pin 22; mosfet Q32
 */
 int mosfet[32] = {0,1,2,3,4,5,6,7,8,9,24,25,26,27,28,29,30,31,
                        32,36,37,40,41,14,15,16,17,18,19,20,21,22};
+
 
                   
 static int irqFlag = 0;
@@ -122,10 +124,13 @@ int get_hardware_id(){
     return hardware_id;
 }
 
+
+
 void IRQ() {
-  irqFlag = irqFlag + 1;
-  //Serial.printf("IRQ flag = %d\n", irqFlag);
+  irqFlag = 1;
 }
+
+//static float cal_data[32];
 
 void setup() {
 
@@ -140,26 +145,25 @@ void setup() {
   Enable global interrupts. 
   Set up ADC interrupt feature on teensy pin 23. 
   Upon recieving an interrupt from ADC(indicating new data is available in ADC),
-  function is called to read data from ADC Data register.
+  IRQ flag is triggered.
   */
   pinMode(INTERRUPT_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), *IRQ, CHANGE);
-
-  /*
-  //Cycle through mofets; setting digital control pin high, calls on 
-  //function that sets mux register to read thermistor inputs
-  for(int mosfetRef = 0; mosfetRef < 15; mosfetRef++) {
-    digitalWrite(mosfet[mosfetRef], HIGH);
-    Serial.printf("Thermistor %d ",(mosfetRef + 1));
-    setThermistorMuxRead();
-    digitalWrite(mosfet[mosfetRef], LOW);
-  
-  }
-  */
+  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), IRQ, FALLING);
 }
 
 
-//Global count of reads for averaging
+
+
+
+
+
+
+
+
+
+
+
+
 
 void loop() {
   int mosfetRef;
@@ -169,32 +173,39 @@ void loop() {
 
   //Cycle through mofets; setting digital control pin high, calls on 
   //function that sets mux register to read thermistor inputs.
+  //Takes average of 10 data values for each mosfet & internal temp, then resets data buffers.
   while(avgCount < 10) {
+  setThermistorMuxRead();
+  delay(1);
   for(mosfetRef = 0; mosfetRef < 15; mosfetRef++) {
-    setThermistorMuxRead();
     digitalWrite(mosfet[mosfetRef], HIGH);
-
-    while (irqFlag < 2) {
-      delay(1); //Wait for interrupt
+    start_conversion();
+    
+    while (irqFlag == 0) {
+      delay(1); //Wait for interrupt 
     }
     irqFlag = 0;
-    if(thermistor_temp[mosfetRef] == 0.00) {
+
+   if(thermistor_temp[mosfetRef] == 0.00) {
       thermistor_temp[mosfetRef] = read_ADCDATA();
       //Serial.println("Initial value");
     }
     else {
       thermistor_temp[mosfetRef] = (thermistor_temp[mosfetRef] + read_ADCDATA()) / (2); 
-      //Serial.println("Running average");
+      //erial.println("Running average");
     }
     digitalWrite(mosfet[mosfetRef], LOW);
   }
   //Calls on function that sets mux register to read internal ADC temperature. 
   setADCInternalTempRead();
-  //delay(1);
-  while (irqFlag < 2) {
+  delay(1);
+  start_conversion();
+  
+  while (irqFlag == 0) {
     delay(1); //Wait for interrupt
   }
   irqFlag = 0;
+
   if (ADC_internal_temp == 0) {
     ADC_internal_temp = read_ADCDATA();
   }

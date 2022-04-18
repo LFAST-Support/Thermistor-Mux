@@ -29,9 +29,11 @@ typedef struct Thermistance {
     float cal_temp;
 } thermistance; 
 
-void cal_thermistor(float temp){
-    //While temperature is still dropping
-    //  Wait
+float cal_thermistor(float temp){
+    //While temperature is still dropping: wait 
+
+    return ();
+    
 
     
 

@@ -117,7 +117,7 @@ OffsetCal & GainCal registers not used??
 */
 
 //Data bytes for debugging
-volatile uint32_t temp_data_buff;
+static uint32_t temp_data_buff;
 //int myFlag = 0;
 
 /*
@@ -143,41 +143,31 @@ void initADC() {
 Sets Mux inputs to internal temperature probes, then restarts conversion to gather new data.
 */
 void  setADCInternalTempRead() {
-    //cli();
-    //myFlag = 0;
-    //sei();
-
     digitalWrite(CS, LOW); //Set CS to Low to begin data transfer
     SPI.transfer(POINT_MUX_WRITE); //Command byte - set register address to 0x06; MUX Register
     SPI.transfer(ADC_TEMP_MUX_SET); //Set Mux register to read internal ADC temp
     delay(1);
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer  
-    
-    digitalWrite(CS, LOW); //Set CS to Low to begin data transfer
-    SPI.transfer(START_CONVERSION); //Restart conversion fast command to gather new data. 
-    digitalWrite(CS, HIGH); //Set CS to high to end data transfer
-
-    //sei();
 }
+
 /*
 Sets Mux inputs to ch0/ch1; thermistors, then restarts conversion to gather new data.
 */
 void setThermistorMuxRead() {
-    //cli();
-   // myFlag = 0;
-    //sei();
-
     digitalWrite(CS, LOW); //Set CS to Low to begin data transfer
     SPI.transfer(POINT_MUX_WRITE); //Command byte - set register address to 0x06; Mux Register
     SPI.transfer(THERM_MUX_SET); //Set Mux to original settings; CH0 & CH1 inputs
     delay(1);
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer
+}
 
+/*
+Starts/Restarts conversion to gather new data.
+*/
+void start_conversion(){
     digitalWrite(CS, LOW); //Set CS to Low to begin data transfer
     SPI.transfer(START_CONVERSION); //Restart conversion fast command to gather new data. 
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer
-
-    //sei();
 }
 
 float read_ADCDATA() {
@@ -186,14 +176,14 @@ float read_ADCDATA() {
     temp_data_buff = SPI.transfer32(0x41000000); //Send read ADC_DATA register, 32 bit command, & saves output(status byte + 24 data bytes) on a variable. 
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer
 
-    if ((temp_data_buff & 0x00FFFFFF) == 0x007FFFFF) {
+    if ((temp_data_buff & 0x00FFFFFF) == 0x007FFFFF) { // INW: Determine and implement opposing extreme
         Serial.printf("Invalid temperature data.\n");
     }
     /*
     Status byte generates two consecutive ADC data reads, due to a change in interrupt status bit,
     Data bytes remain unchanged, else if statement below limits data to one print. 
     */
-    else { // if ((temp_data_buff & 0xFF000000) == 0x13000000) {
+    else {
         /*
         Reads status of Mux register to determine source of output data. 
         Output structure;0xXX(status byte)XX(Mux register read data)
@@ -236,10 +226,7 @@ float convert_internal_temp(uint32_t masked_internal_data) {
     //ADC internal temp tranfer function for V_ref = 2.4V & Gain = 1  
     float ADCtemp_Celsius = (0.00133 * (2.4/3.3) * (masked_internal_data)) - 267.146; 
     //float ADCtemp_Farenheit = (ADCtemp_Celsius * (1.8)) + 32; // Celsius to Farenheit conversion
-    //Serial.print("Internal temp: ");
-    //Serial.println(ADCtemp_Celsius);
-
-    return(ADCtemp_Celsius);
+     return(ADCtemp_Celsius);
 }
 
 /**
@@ -248,13 +235,13 @@ https://www.tme.eu/Document/32a31570f1c819f9b3730213e5eca259/TT7-10KC3-11.pdf
 
     Simplified B parameter Steinhart-Hart equation:
 
-    1/T = (1/To) + (1/B)*ln(R/Ro) 
+    1/T = (1/T_o) + (1/B)*ln(R/R_o) 
 
     T = measured temperature (Kelvin)
-    To = room temperature (25 C = 298.15 K)
+    T_o = room temperature (25 C = 298.15 K)
     B = Beta Constant = 3997 K, provided in data sheet
     R = measured resistance (thermistance)
-    Ro = resistance at room temperature (10K ohms)
+    R_o = resistance at room temperature (10K ohms)
 **/
 float convert_thermistor_temp(uint32_t masked_therm_data){
 
@@ -271,9 +258,7 @@ float convert_thermistor_temp(uint32_t masked_therm_data){
     //Voltage divider, solving for measured thermistace
     thermistance = (ADC_output_voltage*10000)/(2.33 - ADC_output_voltage);
     float stein_temp_Celsius = (1/((1/TEMPERATURENOMINAL) + BCOEFFICIENT*log(thermistance/THERMISTORNOMINAL))) - 272.15;
-    //float stein_temp_Celsius = stein_temp_Kelvin - 272.15;
     //float stein_temp_Farenheit = (stein_temp_Celsius * (1.8)) + 32; 
-    //Serial.println(stein_temp_Celsius);
 
     return(stein_temp_Celsius);
 }

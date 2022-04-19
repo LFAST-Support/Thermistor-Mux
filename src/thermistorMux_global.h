@@ -50,7 +50,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #define production_TEST
 
-#define NUM_MODULES   6
+#define NUM_MODULES   32
 #define MAX_BOARD_ID  (NUM_MODULES-1)
 
 // Display diagnostic messages on serial port if debugging is enabled

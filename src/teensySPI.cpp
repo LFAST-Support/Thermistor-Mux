@@ -22,7 +22,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include <SPI.h>
-//#include <Arduino.h>
 #include "teensySPI.h"
 
 #define CS 10

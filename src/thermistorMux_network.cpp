@@ -26,7 +26,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "thermistorMux_network.h"
-#include "thermistor_Mux.cpp"
+#include "thermistorMux_hardware.h"
 #include <NativeEthernet.h>
 #include <PubSubClient.h>
 #include <NTPClient_Generic.h>
@@ -131,7 +131,7 @@ static const char *m_firmwareVersion = MUX_VERSION_COMPLETE;
 static float    m_calData[NUMBER_MUX_CHANNELS]   = {0.0};  // Multiply raw THERMISTOR voltage by this to convert to user units
 static const char *m_units           = "NOT SET";  // The user units
 static float    m_THERMISTOR[NUMBER_MUX_CHANNELS] = {0.0};
-static float    m_temperature = 0.0;
+static float    m_ADC_temperature = 0.0;
 
 
 // Alias numbers for each of the node metrics
@@ -229,7 +229,7 @@ static MetricSpec NodeMetrics[] = {
     {"Inputs/THERMISTOR29",                       NMA_THERMISTOR29,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[29],           false, 0},
     {"Inputs/THERMISTOR30",                      NMA_THERMISTOR30,           false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[30],          false, 0},
     {"Inputs/THERMISTOR31",                      NMA_THERMISTOR31,           false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[31],          false, 0},
-    {"Inputs/Internal ADC Temperature",                NMA_Temperature,     false, METRIC_DATA_TYPE_FLOAT,   &m_temperature,      false, 0},
+    {"Inputs/Internal ADC Temperature",                NMA_Temperature,     false, METRIC_DATA_TYPE_FLOAT,   &m_ADC_temperature,      false, 0},
 };
 
 //Verify validity of this function
@@ -495,9 +495,9 @@ void publish_data(float* THERMISTOR_data, float temperature){
             DebugPrint(cf_sparkplug_error);
     }
 
-    // Store new temperature
-    m_temperature = temperature;
-    if(!update_metric(ARRAY_AND_SIZE(NodeMetrics), &m_temperature))
+    // Store new ADC temperature
+    m_ADC_temperature = temperature;
+    if(!update_metric(ARRAY_AND_SIZE(NodeMetrics), &m_ADC_temperature))
         DebugPrint(cf_sparkplug_error);
 }
 

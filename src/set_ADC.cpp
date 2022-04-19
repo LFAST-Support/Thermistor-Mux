@@ -136,11 +136,11 @@ void initADC() {
     SPI.transfer(IRQ_SET);
     SPI.transfer(THERM_MUX_SET);
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer
-    delay(1000);
+    delay(10);
 }
 
 /*
-Sets Mux inputs to internal temperature probes, then restarts conversion to gather new data.
+Set Mux inputs to internal temperature probes.
 */
 void  setADCInternalTempRead() {
     digitalWrite(CS, LOW); //Set CS to Low to begin data transfer
@@ -151,7 +151,7 @@ void  setADCInternalTempRead() {
 }
 
 /*
-Sets Mux inputs to ch0/ch1; thermistors, then restarts conversion to gather new data.
+Sets Mux inputs to ch0/ch1; thermistors.
 */
 void setThermistorMuxRead() {
     digitalWrite(CS, LOW); //Set CS to Low to begin data transfer
@@ -173,24 +173,22 @@ void start_conversion(){
 float read_ADCDATA() {
 
     digitalWrite(CS, LOW); //Set CS to Low to begin data transfer
-    temp_data_buff = SPI.transfer32(0x41000000); //Send read ADC_DATA register, 32 bit command, & saves output(status byte + 24 data bytes) on a variable. 
+    temp_data_buff = SPI.transfer32(0x41000000); //Send read ADC_DATA register, 32 bit command, & saves output(status byte + 24 data bytes) on a uint32 buffer. 
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer
 
+
+    //Mask status byte and check for valid data.
     if ((temp_data_buff & 0x00FFFFFF) == 0x007FFFFF) { // INW: Determine and implement opposing extreme
         Serial.printf("Invalid temperature data.\n");
     }
     /*
-    Status byte generates two consecutive ADC data reads, due to a change in interrupt status bit,
-    Data bytes remain unchanged, else if statement below limits data to one print. 
+    Else: Reads status of Mux register to determine source of output data. 
+    Output structure;0xXX(status byte)XX(Mux register read data)
+    0x1701: Mux register inputs are thermistors
+    0x17DE: Mux register inputs are internal temp probes. 
+    If/else statement then sends data to appropriate conversion function. 
     */
     else {
-        /*
-        Reads status of Mux register to determine source of output data. 
-        Output structure;0xXX(status byte)XX(Mux register read data)
-        0x1701: Mux register inputs are thermistors
-        0x17DE: Mux register inputs are internal temp probes. 
-        If/else statement then sends data to appropriate conversion function. 
-        */
         digitalWrite(CS, LOW);//Set CS to Low to begin data transfer
         uint16_t MUX_REG_STATUS = SPI.transfer16(0x5900);
         digitalWrite(CS, HIGH); //Set CS to high to end data transfer
@@ -215,7 +213,7 @@ float read_ADCDATA() {
 Datasheet tranfer equation is for V_ref = 3.3 V & Gain = 1.
     Temp (C) = [0.00133 * ADCDATA(LSB)] - 267.146
 We are implementing V_ref = 2.4 V & Gain = 2.
-    Temp (C) = [0.00133 * (V_ref/3.3V) * (ADCDATA(LSB)/2)] - 267.146
+    Temp (C) = [0.00133 * (V_ref/3.3V) * (ADCDATA(LSB))] - 267.146
 **/
 float convert_internal_temp(uint32_t masked_internal_data) {
 

@@ -23,18 +23,11 @@ this program. If not, see <https://www.gnu.org/licenses/>.
  * @copyright Copyright (c) 2022
  */
 
-//#include <Arduino.h>
 #include "teensySPI.h"
 #include "set_ADC.h"
+#include "thermistorMux_network.h"
+#include "thermistorMux_hardware.h"
 #include "thermistorMux_global.h"
-#include "thermistorCal.h"
-#include <avr/interrupt.h>
-#include <SPI.h>
-#include <stdio.h>
-#include <iostream>
-//#include "LEDFlasher.hpp"
-//#include "network.h"
-
 
 /*
 Questions:
@@ -43,22 +36,19 @@ Questions:
 3) 
 */
 
-#define CS 10
-#define INTERRUPT_PIN 23
-
-#define ID_PIN_0 39
-#define ID_PIN_1 38
-#define ID_PIN_2 35
-#define ID_PIN_3 34
-#define ID_PIN_4 33 
-static int hardware_id = -1;
-
+/*
 typedef struct thermistor_data {
     int mosfetRef;
     float cal_data;
     float uncal_temp;
     float cal_temp = uncal_temp + cal_data;
 } thermData; 
+
+#define RESET_DATA thermistor_temp[32] = NULL; ADC_internal_temp = 0.0;
+*/
+   
+#define CS 10
+#define INTERRUPT_PIN 23
 
 /*
 Array representing 32 Mosfets
@@ -67,79 +57,27 @@ mosfet[1] = header pin 1; mosfet Q2
 ...
 mosfet[31] = header pin 22; mosfet Q32
 */
-int mosfet[32] = {0,1,2,3,4,5,6,7,8,9,24,25,26,27,28,29,30,31,
-                       32,36,37,40,41,14,15,16,17,18,19,20,21,22};
+
+static float cal_data[32];
+
+static unsigned int mosfet[32] = {0,1,2,3,4,5,6,7,8,9,24,25,26,27,28,29,30,31,
+                                  32,36,37,40,41,14,15,16,17,18,19,20,21,22};
 
 
-                  
-static int irqFlag = 0;
+volatile int irqFlag = 0;
+void IRQ() {
+  irqFlag = 1;
+}
 
-#define RESET_DATA thermistor_temp[32] = NULL; ADC_internal_temp = 0.0;
+void setup() {
+  Serial.begin(9600); //For debugging
 
-bool hardware_init(){
-
-    pinMode(ID_PIN_0,INPUT_PULLUP);
-    pinMode(ID_PIN_1,INPUT_PULLUP);
-    pinMode(ID_PIN_2,INPUT_PULLUP);
-    pinMode(ID_PIN_3,INPUT_PULLUP);
-    pinMode(ID_PIN_4,INPUT_PULLUP);
-
-    // Wait for pin inputs to settle
-    delay(500);
-
-    // Read the jumpers.  This must only be done once, even if they produce an
-    // invalid ID, in order to ensure that they are correctly read.
-    // The pins have inverted sense, so the raw values have been reversed.
-    int pin0 = digitalRead(ID_PIN_0) ? 0 : 1;
-    int pin1 = digitalRead(ID_PIN_1) ? 0 : 1;
-    int pin2 = digitalRead(ID_PIN_2) ? 0 : 1;
-    int pin3 = digitalRead(ID_PIN_3) ? 0 : 1;
-    int pin4 = digitalRead(ID_PIN_4) ? 0 : 1;
-
-    hardware_id = ( pin4 << 4 ) +
-                  ( pin3 << 3 ) +
-                  ( pin2 << 2 ) +
-                  ( pin1 << 1 ) +
-                  ( pin0 << 0 );
-
-    DebugPrintNoEOL("Hardware ID = ");
-    DebugPrint(hardware_id);
-
-    // Make sure ID is valid
-    if(hardware_id < 0 || hardware_id > MAX_BOARD_ID){
-        DebugPrint("invalid board ID detected, check jumpers");
-        return false;
-    }
-  // MOSFET digital control I/O ports, set to output. All MOSFETS turned off (pins set to LOW)
+  //MOSFET digital control I/O ports, set to output. All MOSFETS turned off (pins set to LOW).
   for (int mosfetRef = 0; mosfetRef < 32; mosfetRef++) {
     pinMode(mosfet[mosfetRef], OUTPUT);  
     digitalWrite(mosfet[mosfetRef], LOW);
   }
   //INW: figure out how to set skew
-
-    return true; //Success
-}
-
-int get_hardware_id(){
-    return hardware_id;
-}
-
-
-
-void IRQ() {
-  irqFlag = 1;
-}
-
-//static float cal_data[32];
-
-void setup() {
-
-  Serial.begin(9600); //For debugging
-
-  initTeensySPI(); //Enable teensy command of ADC chip
-  initADC(); //Set up ADC with desired configuration
-  hardware_init();
-  //initNetwork(); //Ethernet enable
 
   /*
   Enable global interrupts. 
@@ -149,21 +87,12 @@ void setup() {
   */
   pinMode(INTERRUPT_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), IRQ, FALLING);
+  sei();
+
+  initTeensySPI(); //Enable teensy command of ADC chip
+  initADC(); //Set up ADC with desired configuration
+  hardwareID_init();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 void loop() {
   int mosfetRef;
@@ -177,7 +106,7 @@ void loop() {
   while(avgCount < 10) {
   setThermistorMuxRead();
   delay(1);
-  for(mosfetRef = 0; mosfetRef < 15; mosfetRef++) {
+  for(mosfetRef = 0; mosfetRef < 32; mosfetRef++) {
     digitalWrite(mosfet[mosfetRef], HIGH);
     start_conversion();
     
@@ -216,12 +145,14 @@ void loop() {
   }
 
   Serial.printf("Internal ADC temperature: %0.2f C\n", ADC_internal_temp);
-  for (mosfetRef = 0; mosfetRef < 15; mosfetRef++){
+  for (mosfetRef = 0; mosfetRef < 32; mosfetRef++){
     Serial.printf("Thermistor %d temperature:%0.2f C\n",mosfetRef + 1, thermistor_temp[mosfetRef]);
   }
   Serial.println();
-  //delay(5000);
+  publish_data(thermistor_temp, ADC_internal_temp);
 }
+
+
 
 
 

@@ -12,13 +12,11 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 /**
- * @file thermistor_Mux.cpp
+ * @file thermistorMux_hardware.cpp
  * @author Nestor Garcia (Nestor212@email.arizona.edu)
- * @brief Main file, complete code cycles through 32 mosfets; each conencted to a thermistor,
- * and uses ADC module MC3561R to convert analog to digital data. Internal temperature data of
- * ADC chip is also gathered. 
+ * @brief Enables Device ID pins
  * @version INW
- * @date 2022-03-31
+ * @date 2022-04-19
  *
  * @copyright Copyright (c) 2022
  */

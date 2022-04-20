@@ -15,12 +15,13 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 /**
- * @file vcm_network.cpp
+ * @file thermistorMux_network.cpp
  * @author Rory Scobie (scobier@arizona.edu)
  * @brief Implements networking specific functions, to handle Ethernet, MQTT,
  * Sparkplug, and NTP functionality.
- * @version (see VCM_VERSION in vcm_global.h)
- * @date 2021-03-10
+ * Originally created for VCM module, modified by Nestor, for thermistor Mux use.
+ * @version (see THERMISTOR_MUX_VERSION in thermistorMux_global.h)
+ * @date 2022-04-19
  *
  * @copyright Copyright (c) 2021
  */
@@ -176,7 +177,7 @@ enum NodeMetricAlias {
     NMA_THERMISTOR29,
     NMA_THERMISTOR30,
     NMA_THERMISTOR31,
-    NMA_Temperature,
+    NMA_ADC_Temperature,
     EndNodeMetricAlias
 };
 
@@ -229,7 +230,7 @@ static MetricSpec NodeMetrics[] = {
     {"Inputs/THERMISTOR29",                       NMA_THERMISTOR29,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[29],           false, 0},
     {"Inputs/THERMISTOR30",                      NMA_THERMISTOR30,           false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[30],          false, 0},
     {"Inputs/THERMISTOR31",                      NMA_THERMISTOR31,           false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[31],          false, 0},
-    {"Inputs/Internal ADC Temperature",                NMA_Temperature,     false, METRIC_DATA_TYPE_FLOAT,   &m_ADC_temperature,      false, 0},
+    {"Inputs/Internal ADC Temperature",                NMA_ADC_Temperature,     false, METRIC_DATA_TYPE_FLOAT,   &m_ADC_temperature,      false, 0},
 };
 
 //Verify validity of this function

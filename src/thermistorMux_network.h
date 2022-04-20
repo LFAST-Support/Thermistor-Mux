@@ -15,12 +15,13 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 /**
- * @file vcm_network.h
+ * @file thermistorMux_network.h
  * @author Rory Scobie (scobier@arizona.edu)
  * @brief Networking specific definitions and function prototypes.  For NTP,
- * MQTT, Sparkplug, and Ethernet.
- * @version (see VCM_VERSION in vcm_global.h)
- * @date 2021-03-10
+ * MQTT, Sparkplug, and Ethernet. 
+ * Originally created for VCM module, modified by Nestor, for thermistor Mux use
+ * @version (see THERMISTOR_MUX_VERSION in thermistorMux_global.h)
+ * @date 2022-04-19
  *
  * @copyright Copyright (c) 2021
  */

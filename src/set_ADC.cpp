@@ -14,7 +14,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 /**
  * @file set_ADC.cpp
  * @author Nestor Garcia (Nestor212@email.arizona.edu)
- * @brief Configures ADC registers with desired fuuntionality settings. Contains all
+ * @brief Configures ADC registers with desired funtionality settings. Contains all
  * funtions relating to changing ADC settings and gathering data from the ADC.  
  * @version INW
  * @date 2022-03-31

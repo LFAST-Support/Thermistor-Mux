@@ -15,9 +15,10 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 /**
- * @file vcm_global.h
+ * @file thermistorMux_global.h
  * @author Rory Scobie (scobier@arizona.edu)
  * @brief Global definitions used by all files.
+ * Originally created for VCM module, modified by Nestor, for thermistor Mux use
  * @version (see VCM_VERSION)
  * @date 2021-03-10
  *

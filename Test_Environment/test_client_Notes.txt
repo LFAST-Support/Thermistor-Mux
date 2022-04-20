@@ -1,0 +1,120 @@
+VCM Test Client Notes
+=====================
+This file describes how to set up and run the `test_client.py` program.  This
+is an MQTT client that can be used to send MQTT commands via an MQTT broker to
+a VCM module and display MQTT messages published by the VCM module.  The Test
+Client can run either as a GUI program or with a command-line interface.
+
+Set Up
+------
+The Test Client requires Python 3.7 or later.
+
+Several additional Python packages must be installed.  The following
+instructions are for Debian Linux systems, but commands for other operating
+systems should be similar:
+  1. Install pip3 (the package manager for Python3):
+    - su (to get root privileges, or use sudo with the commands below)
+      - apt install python3-pip
+      - (Not sure if also necessary) apt install python-pip
+      - exit (from su)
+  2. Install various packages for Python3:
+    - pip3 install paho-mqtt
+    - pip3 install protobuf
+  3. Install various packages for the GUI:
+    - These are not required if running with the `no_gui` option.  Note that
+      the PySide6 package used for the GUI isn't available for Raspberry Pi, so
+      when running on the Raspberry Pi computers the `no_gui` option must be
+      specified.
+    - pip3 install PySide6
+    - su (to get root privileges, or use sudo with the commands below)
+      - apt-get install libopengl0
+      - (Not sure if also necessary) apt-get install python3-pyqt5
+      - exit (from su)
+
+Running
+-------
+1. At least one MQTT broker must be running on the network.  This will pass
+  messages between the Test Client and the VCM module/s.
+  - For sample commands to start the brokers on Windows, see
+    test_environment/start_test_env.bat.
+  - For sample commands to start the brokers on Linux, see
+    test_environment/start_test_env.sh.
+
+2. At least one VCM module must be running on the network.  Each VCM module
+  must have a separate ID (0 through 5).
+
+3. Run the Test Client from the test_environment directory:
+  On Linux:
+    - cd test_environment
+    - python3 test_client.py [options...]
+  On Windows:
+    - cd test_environment
+    - py test_client.py [options...]
+
+The Test Client takes several command-line options that control how it
+operates.  If no options are specified it will run in GUI mode and will connect
+to VCM module 0.  To see a list of the available options, run it with the
+`help` argument:
+  - python3 test_client.py help
+    VCM Client v2.3
+    Usage: test_client.py [no_gui] [broker=[BROKER_IP][=BROKER_PORT]] [module=MODULE_ID] [reboot] [dac=NUMBER=VOLTAGE] [show=SHOW_WHAT] [log] [exit]
+    where no_gui = run the command-line interface instead of the GUI
+          BROKER_IP = hostname or IP address of MQTT broker (default 192.168.1.91)
+          BROKER_PORT = port number of MQTT broker (default 1883)
+          MODULE_ID = the VCM module number to contact (0-5, default 0)
+          reboot = send the Reboot command to the module
+          dac = send the DAC_SET command to the module:
+              NUMBER = which DAC output to set (0-11, or "all" for all DACs)
+              VOLTAGE = the floating-point voltage to set it to (0.0 to 1.0, or "random" for a random voltage)
+              Note: Only one dac command can be specified on the command-line.
+          show = what to display on the command-line interface when a message is received, where SHOW_WHAT is one of:
+              none = don't display anything
+              errors = just display errors in incoming messages
+              topic = just display the message topic and errors
+              changed = display the message topic and only those metrics it contains (the default)
+              all = display the message topic and all the metrics from this module
+          log = log inbound data messages to a CSV file with filename vcm_test_log_DATE.csv
+          exit = exit as soon as command-line commands are issued
+
+For example (using Linux commands - for Windows replace `python3` with `py`):
+  - python3 test_client.py
+      - Run as a GUI and connect to VCM 0.
+  - python3 test_client.py module=3
+      - Run as a GUI and connect to VCM 3.
+  - python3 test_client.py broker==1884 module=3
+      - Connect to VCM 3 using the MQTT broker at the default IP address
+        (192.168.1.91) but on port 1884.
+  - python3 test_client.py module=3 no_gui show=all log
+      - Run with a command-line interface, connect to VCM 3, show all metrics,
+        and turn on data logging.
+  - python3 test_client.py broker=localhost module=4 reboot dac=9=0.333 exit
+      - Connect to the MQTT broker on this computer (localhost) on the default
+        port (1883), send the Reboot command to VCM 4, and set DAC 9 to
+        generate 0.333 volts.  Then exit.
+  - python3 test_client.py module=4 dac=all=random exit
+      - Connect to the default MQTT broker and set all DACs on VCM 4 to a
+        random voltage, then exit.
+
+The command-line interface supports several interactive commands, which can be
+displayed by entering ? or help at the prompt:
+    Enter command (? for help, Ctrl-D to quit): ?
+    VCM Client v2.3 connected to Module 0
+    Commands:
+        module MODULE_ID = switch to the VCM module number (0-5)
+        reboot = send the Reboot command to the module
+        dac NUMBER VOLTAGE = send the DAC_SET command to the module:
+            NUMBER = which DAC output to set (0-11, or "all" for all DACs)
+            VOLTAGE = the floating-point voltage to set it to (0.0 to 1.0, or "random" for a random voltage)
+        show SHOW_WHAT = what to display on the command-line interface when a message is received, where SHOW_WHAT is one of:
+            none = don't display anything
+            errors = just display errors in incoming messages
+            topic = just display the message topic and errors
+            changed = display the message topic and only those metrics it contains
+            all = display the message topic and all the metrics from this module
+        log = toggle logging data messages to CSV on or off
+        quit, exit, <Ctrl-D> = stop this program
+        help, h, ? = display this list of commands
+    Note: Only one command can be specified on the command-line.
+
+Type quit, exit, or <Ctrl-D> (<Ctrl-Z><Enter> on Windows) to exit out of the
+command-line interface.

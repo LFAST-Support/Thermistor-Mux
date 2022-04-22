@@ -23,8 +23,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "set_ADC.h"
-#include "SPI.h"
-#include <math.h>
 #include "thermistorMux_global.h"
 
 #define CS 10
@@ -113,7 +111,7 @@ COMMAND type                           - CMD[1:0]
                                 //   1100 : REFIN-  
 /*
 Scan Register & Timer registers not used
-OffsetCal & GainCal registers not used??
+OffsetCal & GainCal registers not used
 */
 
 //Data bytes for debugging
@@ -136,7 +134,7 @@ bool initADC() {
     SPI.transfer(IRQ_SET);
     SPI.transfer(THERM_MUX_SET);
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer
-    delay(10);
+    delay(1);
 
     return true;
 }
@@ -173,18 +171,20 @@ void start_conversion(){
 }
 
 float read_ADCDATA() {
-
     digitalWrite(CS, LOW); //Set CS to Low to begin data transfer
     temp_data_buff = SPI.transfer32(0x41000000); //Send read ADC_DATA register, 32 bit command, & saves output(status byte + 24 data bytes) on a uint32 buffer. 
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer
 
-
-    //Mask status byte and check for valid data.
-    if ((temp_data_buff & 0x00FFFFFF) == 0x007FFFFF) { // INW: Determine and implement opposing extreme
+    /*
+    Mask status byte and check for valid data.
+    When VIN * Gain > VREF – 1 LSb, the 24-bit ADC code (SGN+DATA[22:0]) will saturate and be locked at
+    0x7FFFFF. When VIN * Gain < -VREF, the 24-bit ADC code will saturate and be locked at 0x800000. (pg 42 ADC data sheet)
+    */
+    if (((temp_data_buff & 0x00FFFFFF) == 0x007FFFFF) || ((temp_data_buff & 0x00FFFFFF) == 0x00800000)){ 
         Serial.printf("Invalid temperature data.\n");
     }
     /*
-    Else: Reads status of Mux register to determine source of output data. 
+    Reads status of Mux register to determine source of output data. 
     Output structure;0xXX(status byte)XX(Mux register read data)
     0x1701: Mux register inputs are thermistors
     0x17DE: Mux register inputs are internal temp probes. 
@@ -239,12 +239,11 @@ https://www.tme.eu/Document/32a31570f1c819f9b3730213e5eca259/TT7-10KC3-11.pdf
 
     T = measured temperature (Kelvin)
     T_o = room temperature (25 C = 298.15 K)
-    B = Beta Constant = 3997 K, provided in data sheet
+    B = Beta Constant provided in data sheet
     R = measured resistance (thermistance)
-    R_o = resistance at room temperature (10K ohms)
+    R_o = resistance at room temperature (10K or 2.2K ohms)
 **/
 float convert_thermistor_temp(uint32_t masked_therm_data){
-
     float ADC_output_voltage;
     float thermistance;
 

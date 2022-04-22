@@ -23,13 +23,11 @@ this program. If not, see <https://www.gnu.org/licenses/>.
  * @copyright Copyright (c) 2022
  */
 
-
 #include "teensySPI.h"
 #include "set_ADC.h"
 #include "thermistorMux_network.h"
 #include "thermistorMux_hardware.h"
 #include "thermistorMux_global.h"
-#include "thermistorMux_Cal.h"
 
 /*
 Questions:
@@ -43,21 +41,7 @@ Questions:
 #define INTERRUPT_PIN 23
 
 bool setup_successful = false;
-
 int mosfetRef;
-
-
-/*
-Array representing 32 Mosfets
-mosfet[0] = header pin 0; mosfet Q1
-mosfet[1] = header pin 1; mosfet Q2
-...
-mosfet[31] = header pin 22; mosfet Q32
-*/
-//static unsigned int mosfet[32] = {0,1,2,3,4,5,6,7,8,9,24,25,26,27,28,29,30,31,
-//                                  32,36,37,40,41,14,15,16,17,18,19,20,21,22};
-                                  
-//volatile int irqFlag = 0;
 
 void IRQ() {
   irqFlag = 1;
@@ -66,7 +50,6 @@ void IRQ() {
 float cal_thermistor(float set_temp){
     irqFlag = 0;
     Serial.printf("Set temp is %0.2f, calibration begun.\n", set_temp);
-    int address = 1;
     setThermistorMuxRead();
     delay(1);
     for(mosfetRef = 0; mosfetRef < 32; mosfetRef++) {
@@ -79,30 +62,12 @@ float cal_thermistor(float set_temp){
         irqFlag = 0;
 
         float actual_temp = read_ADCDATA();
-        cal_data[mosfetRef] = set_temp - actual_temp;      
+        cal_data[mosfetRef] = set_temp - actual_temp;  
+
         Serial.printf("Read thermistor temp = %0.2f \nCalculated cal value = %0.2f \n", actual_temp, cal_data[mosfetRef]);
         digitalWrite(mosfet[mosfetRef], LOW);
-        uint8_t cal_data1 = (cal_data[mosfetRef] / 10);
-        Serial.println(cal_data1);
-        delay(1000);
-        EEPROM.write(address, cal_data1);
-        Serial.println(EEPROM.read(address));
-        address++;
-        float cal_data2 = cal_data[mosfetRef] - (cal_data1 * 10);
-        uint8_t cal_data3 = cal_data2 / 1;
-        EEPROM.write(address, cal_data3);
-        address++;
-        float cal_data4 = cal_data2 - cal_data3;
-        uint8_t cal_data5 = cal_data4 / 0.1;
-        EEPROM.write(address, cal_data5);
-        address++;
-        float cal_data6 = cal_data4 - cal_data5;
-        uint8_t cal_data7 = cal_data6 / 0.01;
-        EEPROM.write(address, cal_data7);
-        address++;
     }
     Serial.println("Calibration complete.");
-    EEPROM.write(0x00, 0x01);
     return (0);
 }
 
@@ -128,8 +93,8 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), IRQ, FALLING);
   sei();
 
-  setup_successful = hardwareID_init() && initTeensySPI() && initADC();
-  //&& network_init()
+  setup_successful = hardwareID_init() && initTeensySPI() && initADC() && network_init();
+  
   if(setup_successful){
     Serial.println("Setup successful.");
     check_brokers();
@@ -137,20 +102,7 @@ void setup() {
   else {
     Serial.println("Setup Failed.");
   }
-  
-  //int set_temp = 0;
-  //Serial.print("Enter set temperature value(in degrees C): ");
-  //while(!Serial.available()) {
-  //  delay(1);
-  //}
-  //set_temp = int(Serial.read()) - 48;       // get the character
-
-  if (EEPROM.read(0x00) != (0x01)) {
-    cal_thermistor(0);
-  }
-  else{
-    decode_cal_data();
-  }
+  cal_thermistor(0);
 }
 
 
@@ -176,11 +128,9 @@ void loop() {
 
    if(thermistor_temp[mosfetRef] == 0.00) {
       thermistor_temp[mosfetRef] = read_ADCDATA();
-      //Serial.println("Initial value");
     }
     else {
       thermistor_temp[mosfetRef] = (thermistor_temp[mosfetRef] + read_ADCDATA()) / (2); 
-      //erial.println("Running average");
     }
     digitalWrite(mosfet[mosfetRef], LOW);
   }

@@ -28,7 +28,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include "thermistorMux_network.h"
 #include "thermistorMux_hardware.h"
-#include "thermistorMux_Cal.h"               
 #include <NativeEthernet.h>
 #include <PubSubClient.h>
 #include <NTPClient_Generic.h>
@@ -51,14 +50,14 @@ And check of these functions will work on this board
 
 
 // Common network configuration values: TBD
-#define GATEWAY 127, 0, 0, 1
-#define SUBNET 255, 255, 0, 0
-#define DNS 127, 0, 0, 1
+#define GATEWAY 128, 96, 11, 233
+#define SUBNET 255, 255, 255, 0
+#define DNS 128, 96, 11, 233
 #define NUM_BROKERS  1
 
 #if defined(production_TEST)
 // MQTT broker definitions: TBD
-#define MQTT_BROKER1 127, 0, 0, 1
+#define MQTT_BROKER1 'localhost'
 #define MQTT_BROKER1_PORT 1883
 
 //NTP server address
@@ -82,34 +81,12 @@ And check of these functions will work on this board
 /*
   Private variables
 */
-
-/*
-// Unit conversion data
-typedef struct {
-    float factor;       // Multiply raw THERMISTOR voltage by this to convert to user units
-    const char *units;  // The user units
-} ConversionParams;
-
-static ConversionParams m_moduleConversionParams[NUM_MODULES] = {
-//TODO: ### These are examples and need to be set to the correct values
-    {1000.0, "V"},
-    { 800.0, "A"},
-    {1000.0, "V"},
-    { 500.0, "A"},
-    {1000.0, "V"},
-    {1000.0, "A"},
-};
-*/
-
-
-
 // NTP variables
 static EthernetUDP ntpUDP;
 static IPAddress ntpIP = NTP_IP;
 // Can use "pool.ntp.org" if connected to internet, but might have outages.
 // TODO: decrease sync frequency to avoid violation of pool.ntp.org terms of service
 static NTPClient ntp(ntpUDP, ntpIP);
-
 
 // MQTT variables
 static EthernetClient enet[NUM_BROKERS];
@@ -135,26 +112,17 @@ static const char *m_units           = "NOT SET";  // The user units
 static float    m_THERMISTOR[NUMBER_MUX_CHANNELS] = {0.0};
 static float    m_ADC_temperature = 0.0;
 
-
+/*
 void decode_cal_data() {
         
     int address = 1;
     for (int i = 0; i < 32; i++) {
-        uint8_t cal1 = EEPROM.read(address);
-        float cal11 = float(cal1) *10;
+        EEPROM.get(address, cal_data[i]);
         address++;
-        uint8_t cal2 = EEPROM.read(address);
-        float cal21 = float(cal2);
-        address++;
-        uint8_t cal3 = EEPROM.read(address);
-        float cal31 = float(cal3) *.1;
-        address++;
-        uint8_t cal4 = EEPROM.read(address);
-        float cal41 = float(cal4) *.01;
-        address++;
-        cal_data[i] = cal11 + cal21 + cal31 + cal41;
+ 
     }
 }
+*/
 
 // Alias numbers for each of the node metrics
 enum NodeMetricAlias {

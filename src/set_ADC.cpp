@@ -123,7 +123,7 @@ static uint32_t temp_data_buff;
 /*
 Initializes ADC with desired settings(defined above). 
 */
-void initADC() {
+bool initADC() {
     
     digitalWrite(CS, LOW); //Set CS to Low to begin data transfer
     //ADC offers incremental write feature, after one register is written, moves on to
@@ -137,6 +137,8 @@ void initADC() {
     SPI.transfer(THERM_MUX_SET);
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer
     delay(10);
+
+    return true;
 }
 
 /*

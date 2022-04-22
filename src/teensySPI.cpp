@@ -31,7 +31,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 static SPISettings settingsA(5000000, MSBFIRST, SPI_MODE0);
 
-void initTeensySPI() {
+bool initTeensySPI() {
 
     pinMode(CS, OUTPUT); // Set CS pin to output 
     digitalWrite(CS, HIGH); // Set CS to high
@@ -42,6 +42,8 @@ void initTeensySPI() {
 
     SPI.begin();
     SPI.beginTransaction(settingsA);
+
+    return true;
 }
 
 

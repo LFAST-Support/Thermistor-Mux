@@ -28,6 +28,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include "thermistorMux_network.h"
 #include "thermistorMux_hardware.h"
+#include "thermistorMux_Cal.h"               
 #include <NativeEthernet.h>
 #include <PubSubClient.h>
 #include <NTPClient_Generic.h>
@@ -50,19 +51,18 @@ And check of these functions will work on this board
 
 
 // Common network configuration values: TBD
-#define GATEWAY 111, 111, 1, 1
-#define SUBNET 111, 111, 111, 1
-#define DNS 111, 111, 1, 1
-
+#define GATEWAY 127, 0, 0, 1
+#define SUBNET 255, 255, 0, 0
+#define DNS 127, 0, 0, 1
 #define NUM_BROKERS  1
 
 #if defined(production_TEST)
-// MQTT broker definitions for Rory's test system: TBD
-#define MQTT_BROKER1 111, 111, 1, 1
-#define MQTT_BROKER1_PORT 1111
+// MQTT broker definitions: TBD
+#define MQTT_BROKER1 127, 0, 0, 1
+#define MQTT_BROKER1_PORT 1883
 
 //NTP server address
-#define NTP_IP  {192, 168, 1, 2}
+#define NTP_IP  {169, 254, 39, 226}
 
 #else
   #error A network configuration must be defined
@@ -72,7 +72,7 @@ And check of these functions will work on this board
 #define MUX0_MAC  {0xa, 0x0, 0x0, 0x0, 0x0, 0x0}
 
 // IP address for device #0, adjusted according to ID pins: TBD
-#define MUX0_IP   {111, 1, 1, 111}
+#define MUX0_IP   {169, 254, 84, 177}
 
 // Sparkplug settings
 #define GROUP_ID              "VI"              // This node's group ID
@@ -127,6 +127,7 @@ static uint64_t m_bdSeq[NUM_BROKERS] = {0};  // Node birth/death sequence number
 static bool     m_nodeReboot         = false;
 static bool     m_nodeRebirth        = false;
 static bool     m_nodeNextServer     = false;
+static bool     m_nodeCalibrate      = false;
 static uint64_t m_commsVersion       = COMMS_VERSION;
 static const char *m_firmwareVersion = MUX_VERSION_COMPLETE;
 static float    m_calData[NUMBER_MUX_CHANNELS]   = {0.0};  // Multiply raw THERMISTOR voltage by this to convert to user units
@@ -135,12 +136,33 @@ static float    m_THERMISTOR[NUMBER_MUX_CHANNELS] = {0.0};
 static float    m_ADC_temperature = 0.0;
 
 
+void decode_cal_data() {
+        
+    int address = 1;
+    for (int i = 0; i < 32; i++) {
+        uint8_t cal1 = EEPROM.read(address);
+        float cal11 = float(cal1) *10;
+        address++;
+        uint8_t cal2 = EEPROM.read(address);
+        float cal21 = float(cal2);
+        address++;
+        uint8_t cal3 = EEPROM.read(address);
+        float cal31 = float(cal3) *.1;
+        address++;
+        uint8_t cal4 = EEPROM.read(address);
+        float cal41 = float(cal4) *.01;
+        address++;
+        cal_data[i] = cal11 + cal21 + cal31 + cal41;
+    }
+}
+
 // Alias numbers for each of the node metrics
 enum NodeMetricAlias {
     NMA_bdSeq = 0,
     NMA_Reboot,
     NMA_Rebirth,
     NMA_NextServer,
+    NMA_Calibrate,
     NMA_CommsVersion,
     NMA_FirmwareVersion,
     NMA_CalibrationData,
@@ -194,9 +216,10 @@ static MetricSpec NodeMetrics[] = {
     {"Node Control/Reboot",               NMA_Reboot,          true,  METRIC_DATA_TYPE_BOOLEAN, &m_nodeReboot,       false, 0},
     {"Node Control/Rebirth",              NMA_Rebirth,         true,  METRIC_DATA_TYPE_BOOLEAN, &m_nodeRebirth,      false, 0},
     {"Node Control/Next Server",          NMA_NextServer,      true,  METRIC_DATA_TYPE_BOOLEAN, &m_nodeNextServer,   false, 0},
+    {"Node Control/Calibrate",            NMA_Calibrate,      true,  METRIC_DATA_TYPE_BOOLEAN, &m_nodeCalibrate,    false, 0},
     {"Properties/Communications Version", NMA_CommsVersion,    false, METRIC_DATA_TYPE_INT64,   &m_commsVersion,     false, 0},
     {"Properties/Firmware Version",       NMA_FirmwareVersion, false, METRIC_DATA_TYPE_STRING,  &m_firmwareVersion,  false, 0},
-    {"Properties/Conversion Factor",      NMA_CalibrationData,      false, METRIC_DATA_TYPE_FLOAT,   &m_calData, false, 0},
+    {"Properties/Calibration Data",      NMA_CalibrationData,      false, METRIC_DATA_TYPE_FLOAT,   &m_calData, false, 0},
     {"Properties/Units",                  NMA_Units,           false, METRIC_DATA_TYPE_STRING,  &m_units,            false, 0},
     {"Inputs/THERMISTOR0",                       NMA_THERMISTOR0,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[0],           false, 0},
     {"Inputs/THERMISTOR1",                       NMA_THERMISTOR1,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[1],           false, 0},
@@ -408,6 +431,12 @@ bool process_node_cmd_message(char* topic, byte* payload, unsigned int len){
             if(m_nodeNextServer)
                 DebugPrint("NextServer command received");
             break;
+        case NMA_Calibrate:
+            /*
+            Run Calibration routine(INW). 
+            Save calibration data to flash memory??
+            Make calibration data a metric? Or keep it internal to the teensy firmware. 
+            */
 
         default:
             DebugPrintNoEOL("Unhandled Node metric alias: ");
@@ -488,16 +517,17 @@ void callback_worker(char* topic, byte* payload, unsigned int len){
  * THERMISTOR voltages
  * @param the average temperature reading
  */
-void publish_data(float* THERMISTOR_data, float temperature){
+void publish_data(float* THERMISTOR_data, float ADC_temperature){
     // Store new THERMISTOR data, converting from raw THERMISTOR values to user units
     for(int i = 0; i < NUMBER_MUX_CHANNELS; i++){
+        m_calData[i] = cal_data[i];
         m_THERMISTOR[i] = THERMISTOR_data[i] + m_calData[i];
         if(!update_metric(ARRAY_AND_SIZE(NodeMetrics), &m_THERMISTOR[i]))
             DebugPrint(cf_sparkplug_error);
     }
 
     // Store new ADC temperature
-    m_ADC_temperature = temperature;
+    m_ADC_temperature = ADC_temperature;
     if(!update_metric(ARRAY_AND_SIZE(NodeMetrics), &m_ADC_temperature))
         DebugPrint(cf_sparkplug_error);
 }
@@ -572,7 +602,7 @@ bool network_init(void){
     }
 
     // Point to our function for getting timestamps
-    set_gettimestamp_callback(get_current_time_millis);
+    //set_gettimestamp_callback(get_current_time_millis);
 
     IPAddress ip = MUX0_IP;      // This device's IP
     IPAddress dns(DNS);          // DNS server

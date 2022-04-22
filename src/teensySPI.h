@@ -25,6 +25,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #ifndef TEENSYSPI_H
 #define TEENSYSPI_H
 
-void initTeensySPI();
+bool initTeensySPI();
 
 #endif

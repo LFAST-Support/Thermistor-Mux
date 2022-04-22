@@ -28,7 +28,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #define ADC_H
 
 
-void initADC();
+bool initADC();
 void setADCInternalTempRead();
 void setThermistorMuxRead();
 void start_conversion();

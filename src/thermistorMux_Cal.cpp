@@ -21,20 +21,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
  * @copyright Copyright (c) 2022
  */
 
-#include "thermistorCal.h"
+#include "thermistorMux_Cal.h"
+#include "thermistorMux_global.h"
+#include "set_ADC.h"
 
-typedef struct Thermistance {
-    float cal_data;
-    float uncal_temp;
-    float cal_temp;
-} thermistance; 
 
-float cal_thermistor(float temp){
-    //While temperature is still dropping: wait 
-
-    return (0);
-    
-
-    
-
-}

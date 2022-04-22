@@ -31,15 +31,18 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 
 #include "thermistorMux_global.h"
+#include <PubSubClient.h>
+
 
 
 // Public functions
 bool network_init();
 void check_brokers();
-void publish_data(float* adc_data, float temperature);
+void publish_data(float* thermistor_data, float ADC_temperature);
 bool update_ntp();
 unsigned long get_current_time();
 unsigned long long get_current_time_millis();
+void decode_cal_data();
 
 
 #endif

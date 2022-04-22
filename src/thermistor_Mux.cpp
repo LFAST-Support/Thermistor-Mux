@@ -47,30 +47,6 @@ void IRQ() {
   irqFlag = 1;
 }
 
-float cal_thermistor(float set_temp){
-    irqFlag = 0;
-    Serial.printf("Set temp is %0.2f, calibration begun.\n", set_temp);
-    setThermistorMuxRead();
-    delay(1);
-    for(mosfetRef = 0; mosfetRef < 32; mosfetRef++) {
-        digitalWrite(mosfet[mosfetRef], HIGH);
-        start_conversion();
-        
-        while (irqFlag == 0) {
-          delay(1); //Wait for interrupt 
-        }
-        irqFlag = 0;
-
-        float actual_temp = read_ADCDATA();
-        cal_data[mosfetRef] = set_temp - actual_temp;  
-
-        Serial.printf("Read thermistor temp = %0.2f \nCalculated cal value = %0.2f \n", actual_temp, cal_data[mosfetRef]);
-        digitalWrite(mosfet[mosfetRef], LOW);
-    }
-    Serial.println("Calibration complete.");
-    return (0);
-}
-
 
 void setup() {
   Serial.begin(9600); //For debugging
@@ -102,7 +78,7 @@ void setup() {
   else {
     Serial.println("Setup Failed.");
   }
-  cal_thermistor(0);
+  //cal_thermistor(0);
 }
 
 
@@ -110,6 +86,9 @@ void loop() {
   int avgCount = 0;
   float thermistor_temp[32] = {0.00};
   float ADC_internal_temp = 0;
+
+  check_brokers();
+
 
   //Cycle through mofets; setting digital control pin high, calls on 
   //function that sets mux register to read thermistor inputs.

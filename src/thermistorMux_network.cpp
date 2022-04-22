@@ -28,6 +28,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include "thermistorMux_network.h"
 #include "thermistorMux_hardware.h"
+#include "thermistorMux_Cal.h"
 #include <NativeEthernet.h>
 #include <PubSubClient.h>
 #include <NTPClient_Generic.h>
@@ -51,13 +52,13 @@ And check of these functions will work on this board
 
 // Common network configuration values: TBD
 #define GATEWAY 128, 96, 11, 233
-#define SUBNET 255, 255, 255, 0
+#define SUBNET 255, 255, 0, 0
 #define DNS 128, 96, 11, 233
 #define NUM_BROKERS  1
 
 #if defined(production_TEST)
 // MQTT broker definitions: TBD
-#define MQTT_BROKER1 'localhost'
+#define MQTT_BROKER1 169,254,141,48
 #define MQTT_BROKER1_PORT 1883
 
 //NTP server address
@@ -75,7 +76,7 @@ And check of these functions will work on this board
 
 // Sparkplug settings
 #define GROUP_ID              "VI"              // This node's group ID
-#define NODE_ID_TEMPLATE      "TEMPx"            // Template for this node's node ID
+#define NODE_ID_TEMPLATE      "THERMISTORx"            // Template for this node's node ID
 #define NODE_ID_TOKEN         'x'               // Character to be replaced with module ID
 
 /*
@@ -135,7 +136,6 @@ enum NodeMetricAlias {
     NMA_FirmwareVersion,
     NMA_CalibrationData,
     NMA_Units,
-    NMA_THERMISTOR0,
     NMA_THERMISTOR1,
     NMA_THERMISTOR2,
     NMA_THERMISTOR3,
@@ -167,6 +167,7 @@ enum NodeMetricAlias {
     NMA_THERMISTOR29,
     NMA_THERMISTOR30,
     NMA_THERMISTOR31,
+    NMA_THERMISTOR32,
     NMA_ADC_Temperature,
     EndNodeMetricAlias
 };
@@ -189,39 +190,39 @@ static MetricSpec NodeMetrics[] = {
     {"Properties/Firmware Version",       NMA_FirmwareVersion, false, METRIC_DATA_TYPE_STRING,  &m_firmwareVersion,  false, 0},
     {"Properties/Calibration Data",      NMA_CalibrationData,      false, METRIC_DATA_TYPE_FLOAT,   &m_calData, false, 0},
     {"Properties/Units",                  NMA_Units,           false, METRIC_DATA_TYPE_STRING,  &m_units,            false, 0},
-    {"Inputs/THERMISTOR0",                       NMA_THERMISTOR0,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[0],           false, 0},
-    {"Inputs/THERMISTOR1",                       NMA_THERMISTOR1,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[1],           false, 0},
-    {"Inputs/THERMISTOR2",                       NMA_THERMISTOR2,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[2],           false, 0},
-    {"Inputs/THERMISTOR3",                       NMA_THERMISTOR3,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[3],           false, 0},
-    {"Inputs/THERMISTOR4",                       NMA_THERMISTOR4,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[4],           false, 0},
-    {"Inputs/THERMISTOR5",                       NMA_THERMISTOR5,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[5],           false, 0},
-    {"Inputs/THERMISTOR6",                       NMA_THERMISTOR6,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[6],           false, 0},
-    {"Inputs/THERMISTOR7",                       NMA_THERMISTOR7,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[7],           false, 0},
-    {"Inputs/THERMISTOR8",                       NMA_THERMISTOR8,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[8],           false, 0},
-    {"Inputs/THERMISTOR9",                       NMA_THERMISTOR9,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[9],           false, 0},
-    {"Inputs/THERMISTOR10",                      NMA_THERMISTOR10,           false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[10],          false, 0},
-    {"Inputs/THERMISTOR11",                      NMA_THERMISTOR11,           false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[11],          false, 0},
-    {"Inputs/THERMISTOR12",                       NMA_THERMISTOR12,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[12],           false, 0},
-    {"Inputs/THERMISTOR13",                       NMA_THERMISTOR13,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[13],           false, 0},
-    {"Inputs/THERMISTOR14",                       NMA_THERMISTOR14,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[14],           false, 0},
-    {"Inputs/THERMISTOR15",                       NMA_THERMISTOR15,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[15],           false, 0},
-    {"Inputs/THERMISTOR16",                       NMA_THERMISTOR16,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[16],           false, 0},
-    {"Inputs/THERMISTOR17",                       NMA_THERMISTOR17,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[17],           false, 0},
-    {"Inputs/THERMISTOR18",                       NMA_THERMISTOR18,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[18],           false, 0},
-    {"Inputs/THERMISTOR19",                       NMA_THERMISTOR19,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[19],           false, 0},
-    {"Inputs/THERMISTOR20",                      NMA_THERMISTOR20,           false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[20],          false, 0},
-    {"Inputs/THERMISTOR21",                      NMA_THERMISTOR21,           false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[21],          false, 0},
-    {"Inputs/THERMISTOR22",                       NMA_THERMISTOR22,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[22],           false, 0},
-    {"Inputs/THERMISTOR23",                       NMA_THERMISTOR23,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[23],           false, 0},
-    {"Inputs/THERMISTOR24",                       NMA_THERMISTOR24,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[24],           false, 0},
-    {"Inputs/THERMISTOR25",                       NMA_THERMISTOR25,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[25],           false, 0},
-    {"Inputs/THERMISTOR26",                       NMA_THERMISTOR26,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[26],           false, 0},
-    {"Inputs/THERMISTOR27",                       NMA_THERMISTOR27,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[27],           false, 0},
-    {"Inputs/THERMISTOR28",                       NMA_THERMISTOR28,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[28],           false, 0},
-    {"Inputs/THERMISTOR29",                       NMA_THERMISTOR29,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[29],           false, 0},
-    {"Inputs/THERMISTOR30",                      NMA_THERMISTOR30,           false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[30],          false, 0},
-    {"Inputs/THERMISTOR31",                      NMA_THERMISTOR31,           false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[31],          false, 0},
-    {"Inputs/Internal ADC Temperature",                NMA_ADC_Temperature,     false, METRIC_DATA_TYPE_FLOAT,   &m_ADC_temperature,      false, 0},
+    {"Inputs/THERMISTOR1",                       NMA_THERMISTOR1,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[0],           false, 0},
+    {"Inputs/THERMISTOR2",                       NMA_THERMISTOR2,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[1],           false, 0},
+    {"Inputs/THERMISTOR3",                       NMA_THERMISTOR3,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[2],           false, 0},
+    {"Inputs/THERMISTOR4",                       NMA_THERMISTOR4,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[3],           false, 0},
+    {"Inputs/THERMISTOR5",                       NMA_THERMISTOR5,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[4],           false, 0},
+    {"Inputs/THERMISTOR6",                       NMA_THERMISTOR6,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[5],           false, 0},
+    {"Inputs/THERMISTOR7",                       NMA_THERMISTOR7,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[6],           false, 0},
+    {"Inputs/THERMISTOR8",                       NMA_THERMISTOR8,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[7],           false, 0},
+    {"Inputs/THERMISTOR9",                       NMA_THERMISTOR9,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[8],           false, 0},
+    {"Inputs/THERMISTOR10",                      NMA_THERMISTOR10,           false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[9],          false, 0},
+    {"Inputs/THERMISTOR11",                      NMA_THERMISTOR11,           false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[10],          false, 0},
+    {"Inputs/THERMISTOR12",                       NMA_THERMISTOR12,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[11],           false, 0},
+    {"Inputs/THERMISTOR13",                       NMA_THERMISTOR13,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[12],           false, 0},
+    {"Inputs/THERMISTOR14",                       NMA_THERMISTOR14,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[13],           false, 0},
+    {"Inputs/THERMISTOR15",                       NMA_THERMISTOR15,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[14],           false, 0},
+    {"Inputs/THERMISTOR16",                       NMA_THERMISTOR16,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[15],           false, 0},
+    {"Inputs/THERMISTOR17",                       NMA_THERMISTOR17,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[16],           false, 0},
+    {"Inputs/THERMISTOR18",                       NMA_THERMISTOR18,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[17],           false, 0},
+    {"Inputs/THERMISTOR19",                       NMA_THERMISTOR19,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[18],           false, 0},
+    {"Inputs/THERMISTOR20",                      NMA_THERMISTOR20,           false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[19],          false, 0},
+    {"Inputs/THERMISTOR21",                      NMA_THERMISTOR21,           false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[20],          false, 0},
+    {"Inputs/THERMISTOR22",                       NMA_THERMISTOR22,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[21],           false, 0},
+    {"Inputs/THERMISTOR23",                       NMA_THERMISTOR23,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[22],           false, 0},
+    {"Inputs/THERMISTOR24",                       NMA_THERMISTOR24,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[23],           false, 0},
+    {"Inputs/THERMISTOR25",                       NMA_THERMISTOR25,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[24],           false, 0},
+    {"Inputs/THERMISTOR26",                       NMA_THERMISTOR26,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[25],           false, 0},
+    {"Inputs/THERMISTOR27",                       NMA_THERMISTOR27,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[26],           false, 0},
+    {"Inputs/THERMISTOR28",                       NMA_THERMISTOR28,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[27],           false, 0},
+    {"Inputs/THERMISTOR29",                       NMA_THERMISTOR29,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[28],           false, 0},
+    {"Inputs/THERMISTOR30",                      NMA_THERMISTOR30,           false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[29],          false, 0},
+    {"Inputs/THERMISTOR31",                      NMA_THERMISTOR31,           false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[30],          false, 0},
+    {"Inputs/THERMISTOR32",                       NMA_THERMISTOR32,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[31],           false, 0},
+    {"Inputs/ADC Internal Temperature",          NMA_ADC_Temperature,     false, METRIC_DATA_TYPE_FLOAT,   &m_ADC_temperature,      false, 0},
 };
 
 //Verify validity of this function
@@ -342,6 +343,7 @@ unsigned long long get_current_time_millis(void){
 // Check to see if a received message is a Node command (NCMD) message.  If it
 // is, handle it and return true, even if it's invalid; otherwise return false.
 bool process_node_cmd_message(char* topic, byte* payload, unsigned int len){
+    Serial.println("Processing Command.");
     if(strcmp(topic, nodeCmdTopic.c_str()) != 0)
         // This is not a Node command message
         return false;
@@ -400,11 +402,12 @@ bool process_node_cmd_message(char* topic, byte* payload, unsigned int len){
                 DebugPrint("NextServer command received");
             break;
         case NMA_Calibrate:
-            /*
-            Run Calibration routine(INW). 
-            Save calibration data to flash memory??
-            Make calibration data a metric? Or keep it internal to the teensy firmware. 
-            */
+            if(metric->value.boolean_value){
+                DebugPrint("Calibration command received");
+
+                cal_thermistor(0);
+            }
+            break;
 
         default:
             DebugPrintNoEOL("Unhandled Node metric alias: ");
@@ -489,7 +492,7 @@ void publish_data(float* THERMISTOR_data, float ADC_temperature){
     // Store new THERMISTOR data, converting from raw THERMISTOR values to user units
     for(int i = 0; i < NUMBER_MUX_CHANNELS; i++){
         m_calData[i] = cal_data[i];
-        m_THERMISTOR[i] = THERMISTOR_data[i] + m_calData[i];
+        m_THERMISTOR[i] = THERMISTOR_data[i] + cal_data[i];
         if(!update_metric(ARRAY_AND_SIZE(NodeMetrics), &m_THERMISTOR[i]))
             DebugPrint(cf_sparkplug_error);
     }

@@ -72,7 +72,7 @@ class MetricSpec:
         self.timestamp = timestamp_str( None )
 
 Metrics = (
-    [ MetricSpec( None, f'Inputs/Thermistor{thermistor}',                  'strip to /', True  ) for thermistor in range( NUM_THERMISTORS ) ] +
+    [ MetricSpec( None, f'Inputs/THERMISTOR{thermistor + 1}',                  'strip to /', True  ) for thermistor in range( NUM_THERMISTORS ) ] +
     [ MetricSpec( None, 'Inputs/ADC Internal Temperature',                'strip to /', True  ) ] +
     [ MetricSpec( None, 'Properties/Conversion Factor',      'strip to /', True  ) ] +
     [ MetricSpec( None, 'Properties/Units',                  'strip to /', True  ) ] +
@@ -82,8 +82,8 @@ Metrics = (
     [ MetricSpec( None, 'Node Control/Reboot',               'strip to /', False ) ] +
     [ MetricSpec( None, 'Node Control/Rebirth',              'strip to /', False ) ] +
     [ MetricSpec( None, 'Node Control/Next Server',          'strip to /', False ) ] +
-    [ MetricSpec( None, 'Properties/Test Bench Status',      'strip to /', False ) ] +
-    [ MetricSpec( None, f'Outputs/Calibrate',                'strip to /', False ) ]
+    [ MetricSpec( None, 'Properties/Calibration Data',      'strip to /', False ) ] +
+    [ MetricSpec( None, f'Node Control/Calibrate',                'strip to /', False ) ]
     )
 
 # Reset the aliases and/or values for all the metrics of the specified device
@@ -580,13 +580,12 @@ def reboot_button_handler():
     reboot_module()
 
 def send_cal_command(cal):
-    payload = get_cmd_payload()
-    if not add_metric_as_alias(payload, None, f'Outputs/Calibrate', MetricDataType.Boolean, cal ):
-        return False
-    byte_array = bytearray(payload.SerializeToString())
-    client.publish( NODE_CMD_TOPIC, byte_array, 0, False )
-    report( f'Calibration in progress', always = True )
-    return True
+
+    if cal:
+        if send_simple_node_command( 'Node Control/Calibrate' ):
+            report( 'Module commanded to Calibrate', always = True )
+    else:
+        report( 'Module calibration status requested', always = True )
 
 # Main program starts here
 

@@ -134,7 +134,7 @@ bool initADC() {
     SPI.transfer(IRQ_SET);
     SPI.transfer(THERM_MUX_SET);
     digitalWrite(CS, HIGH); //Set CS to high to end data transfer
-    delay(1);
+    delay(10);
 
     return true;
 }

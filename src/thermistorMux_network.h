@@ -29,12 +29,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #ifndef VCM_NETWORK_H
 #define VCM_NETWORK_H
 
-
-#include "thermistorMux_global.h"
-#include <PubSubClient.h>
-
-
-
 // Public functions
 bool network_init();
 void check_brokers();

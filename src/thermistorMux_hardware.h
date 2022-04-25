@@ -27,5 +27,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 bool hardwareID_init();
 int get_hardware_id();
+bool initTeensySPI();
+
 
 #endif

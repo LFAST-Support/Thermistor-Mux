@@ -22,7 +22,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
  * @copyright Copyright (c) 2022
  */
 
-#include "set_ADC.h"
+#include "command_ADC.h"
 #include "thermistorMux_global.h"
 
 #define CS 10

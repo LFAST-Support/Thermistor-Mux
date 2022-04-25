@@ -23,11 +23,11 @@ this program. If not, see <https://www.gnu.org/licenses/>.
  * @copyright Copyright (c) 2022
  */
 
-#include "teensySPI.h"
-#include "set_ADC.h"
+#include "command_ADC.h"
 #include "thermistorMux_network.h"
 #include "thermistorMux_hardware.h"
 #include "thermistorMux_global.h"
+#include "thermistor_Mux.h"
 
 /*
 Questions:
@@ -45,6 +45,30 @@ int mosfetRef;
 
 void IRQ() {
   irqFlag = 1;
+}
+
+float cal_thermistor(float set_temp){
+    irqFlag = 0;
+    Serial.printf("Set temp is %0.2f, calibration begun.\n", set_temp);
+    setThermistorMuxRead();
+    delay(1);
+    for(int mosfetRef = 0; mosfetRef < 32; mosfetRef++) {
+        digitalWrite(mosfet[mosfetRef], HIGH);
+        start_conversion();
+        
+        while (irqFlag == 0) {
+          delay(1); //Wait for interrupt 
+        }
+        irqFlag = 0;
+
+        float actual_temp = read_ADCDATA();
+        cal_data[mosfetRef] = set_temp - actual_temp;  
+
+        Serial.printf("Read thermistor temp = %0.2f \nCalculated cal value = %0.2f \n", actual_temp, cal_data[mosfetRef]);
+        digitalWrite(mosfet[mosfetRef], LOW);
+    }
+    Serial.println("Calibration complete.");
+    return (0);
 }
 
 
@@ -134,7 +158,8 @@ void loop() {
 
   Serial.printf("Internal ADC temperature: %0.2f C\n", ADC_internal_temp);
   for (mosfetRef = 0; mosfetRef < 32; mosfetRef++){
-    Serial.printf("Thermistor %d temperature + %0.2f cal data: %0.2f C\n",mosfetRef + 1,cal_data[mosfetRef], thermistor_temp[mosfetRef] + cal_data[mosfetRef]);
+    thermistor_temp[mosfetRef] = thermistor_temp[mosfetRef] + cal_data[mosfetRef];
+    Serial.printf("Thermistor %d temperature + %0.2f cal data: %0.2f C\n",mosfetRef + 1, cal_data[mosfetRef], thermistor_temp[mosfetRef]);
   }
   Serial.println();
   publish_data(thermistor_temp, ADC_internal_temp);

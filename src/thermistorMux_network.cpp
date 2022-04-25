@@ -28,7 +28,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include "thermistorMux_network.h"
 #include "thermistorMux_hardware.h"
-#include "thermistorMux_Cal.h"
+#include "thermistorMux_global.h"
+#include "thermistor_Mux.h"
 #include <NativeEthernet.h>
 #include <PubSubClient.h>
 #include <NTPClient_Generic.h>
@@ -105,10 +106,10 @@ static uint64_t m_bdSeq[NUM_BROKERS] = {0};  // Node birth/death sequence number
 static bool     m_nodeReboot         = false;
 static bool     m_nodeRebirth        = false;
 static bool     m_nodeNextServer     = false;
-static bool     m_nodeCalibrate      = false;
+static bool     m_nodeCalibration      = false;
 static uint64_t m_commsVersion       = COMMS_VERSION;
 static const char *m_firmwareVersion = MUX_VERSION_COMPLETE;
-static float    m_calData[NUMBER_MUX_CHANNELS]   = {0.0};  // Multiply raw THERMISTOR voltage by this to convert to user units
+static float    m_calTemp            = {0.0};  
 static const char *m_units           = "NOT SET";  // The user units
 static float    m_THERMISTOR[NUMBER_MUX_CHANNELS] = {0.0};
 static float    m_ADC_temperature = 0.0;
@@ -131,10 +132,10 @@ enum NodeMetricAlias {
     NMA_Reboot,
     NMA_Rebirth,
     NMA_NextServer,
-    NMA_Calibrate,
+    NMA_CalibrationStatus,
+    NMA_CalibrationTemp,
     NMA_CommsVersion,
     NMA_FirmwareVersion,
-    NMA_CalibrationData,
     NMA_Units,
     NMA_THERMISTOR1,
     NMA_THERMISTOR2,
@@ -185,10 +186,10 @@ static MetricSpec NodeMetrics[] = {
     {"Node Control/Reboot",               NMA_Reboot,          true,  METRIC_DATA_TYPE_BOOLEAN, &m_nodeReboot,       false, 0},
     {"Node Control/Rebirth",              NMA_Rebirth,         true,  METRIC_DATA_TYPE_BOOLEAN, &m_nodeRebirth,      false, 0},
     {"Node Control/Next Server",          NMA_NextServer,      true,  METRIC_DATA_TYPE_BOOLEAN, &m_nodeNextServer,   false, 0},
-    {"Node Control/Calibrate",            NMA_Calibrate,      true,  METRIC_DATA_TYPE_BOOLEAN, &m_nodeCalibrate,    false, 0},
+    {"Node Control/Calibrate",            NMA_CalibrationStatus,      true,  METRIC_DATA_TYPE_BOOLEAN, &m_nodeCalibration,    false, 0},
+    {"Node Control/Calibration Temperature",      NMA_CalibrationTemp,      true, METRIC_DATA_TYPE_FLOAT,   &m_calTemp, false, 0},    
     {"Properties/Communications Version", NMA_CommsVersion,    false, METRIC_DATA_TYPE_INT64,   &m_commsVersion,     false, 0},
     {"Properties/Firmware Version",       NMA_FirmwareVersion, false, METRIC_DATA_TYPE_STRING,  &m_firmwareVersion,  false, 0},
-    {"Properties/Calibration Data",      NMA_CalibrationData,      false, METRIC_DATA_TYPE_FLOAT,   &m_calData, false, 0},
     {"Properties/Units",                  NMA_Units,           false, METRIC_DATA_TYPE_STRING,  &m_units,            false, 0},
     {"Inputs/THERMISTOR1",                       NMA_THERMISTOR1,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[0],           false, 0},
     {"Inputs/THERMISTOR2",                       NMA_THERMISTOR2,            false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[1],           false, 0},
@@ -401,14 +402,15 @@ bool process_node_cmd_message(char* topic, byte* payload, unsigned int len){
             if(m_nodeNextServer)
                 DebugPrint("NextServer command received");
             break;
-        case NMA_Calibrate:
+        case NMA_CalibrationStatus:
             if(metric->value.boolean_value){
                 DebugPrint("Calibration command received");
-
-                cal_thermistor(0);
             }
             break;
-
+        case NMA_CalibrationTemp:
+            m_calTemp = metric->value.float_value;
+            cal_thermistor(m_calTemp);            
+            break;
         default:
             DebugPrintNoEOL("Unhandled Node metric alias: ");
             DebugPrint(alias);
@@ -491,8 +493,7 @@ void callback_worker(char* topic, byte* payload, unsigned int len){
 void publish_data(float* THERMISTOR_data, float ADC_temperature){
     // Store new THERMISTOR data, converting from raw THERMISTOR values to user units
     for(int i = 0; i < NUMBER_MUX_CHANNELS; i++){
-        m_calData[i] = cal_data[i];
-        m_THERMISTOR[i] = THERMISTOR_data[i] + cal_data[i];
+        m_THERMISTOR[i] = THERMISTOR_data[i];
         if(!update_metric(ARRAY_AND_SIZE(NodeMetrics), &m_THERMISTOR[i]))
             DebugPrint(cf_sparkplug_error);
     }

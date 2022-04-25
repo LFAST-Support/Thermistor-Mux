@@ -21,9 +21,30 @@ this program. If not, see <https://www.gnu.org/licenses/>.
  * @copyright Copyright (c) 2022
  */
 
-
 #include "thermistorMux_global.h"
 #include "thermistorMux_hardware.h"
+
+#define CS 10
+#define MOSI 11
+#define MISO 12
+#define SCK 13
+
+static SPISettings settingsA(5000000, MSBFIRST, SPI_MODE0);
+
+bool initTeensySPI() {
+
+    pinMode(CS, OUTPUT); // Set CS pin to output 
+    digitalWrite(CS, HIGH); // Set CS to high
+
+    SPI.setMOSI(MOSI);
+    SPI.setMISO(MISO);
+    SPI.setSCK(SCK);
+
+    SPI.begin();
+    SPI.beginTransaction(settingsA);
+
+    return true;
+}
 
 
 bool hardwareID_init(){

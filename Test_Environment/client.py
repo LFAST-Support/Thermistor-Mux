@@ -82,7 +82,7 @@ Metrics = (
     [ MetricSpec( None, 'Node Control/Reboot',               'strip to /', False ) ] +
     [ MetricSpec( None, 'Node Control/Rebirth',              'strip to /', False ) ] +
     [ MetricSpec( None, 'Node Control/Next Server',          'strip to /', False ) ] +
-    [ MetricSpec( None, 'Properties/Calibration Data',      'strip to /', False ) ] +
+    [ MetricSpec( None, 'Node Control/Calibration Temperature',      'strip to /', False ) ] +
     [ MetricSpec( None, f'Node Control/Calibrate',                'strip to /', False ) ]
     )
 
@@ -579,14 +579,32 @@ def reboot_module():
 def reboot_button_handler():
     reboot_module()
 
-def send_cal_command(cal):
+# Add a metric to the payload to set the voltage on a DAC
+def add_cal_temp_metric( payload, cal_temp ):
+    #if cal_temp < 0 or cal_temp >= 100:
+    #    report( f'Calibration temperature out of range, must be 0 to 100 degrees Celsius.', error = True, always = True )
+    #    return False
+    cal_temp = int (cal_temp)
+    try:
+        add_metric_as_alias( payload, None, f'Node Control/Calibration Temperature', MetricDataType.Float, cal_temp )
+    except ValueError:
+        report( f'Unrecognized metric: "Node Control/Calibration Temperature', error = True, always = True )
+        return False
+    return True
 
-    if cal:
-        if send_simple_node_command( 'Node Control/Calibrate' ):
-            report( 'Module commanded to Calibrate', always = True )
+def send_cal_command(cal, cal_temp):
+    if cal is True:
+        payload = get_cmd_payload()
+        if not add_cal_temp_metric( payload, cal_temp ):
+            return False
+        byte_array = bytearray( payload.SerializeToString() )
+        client.publish( NODE_CMD_TOPIC, byte_array, 0, False )
+        report( f'Calibration temperature is {cal_temp}', always = True )
+        return True   
     else:
-        report( 'Module calibration status requested', always = True )
-
+        if send_simple_node_command( 'Node Control/Calibrate' ):
+            report( 'Module calibration status requested', always = True )
+             
 # Main program starts here
 
 # Set the default option values
@@ -714,7 +732,9 @@ if option_no_GUI:
                 report( f'Invalid use, CAL must be one of {CAL_OPTIONS}', error = True, always = True )
                 continue
             elif command [ 1 ] == 'yes':
-                send_cal_command(True)
+                report ( 'Please place the thermistors in a controlled temperature environment \nand wait for the temperature to stabilize at desired value. \n ')
+                cal_temp = input( 'Please enter calibration temperature: ')
+                send_cal_command(True, cal_temp)
             else:
                 command [ 1 ] == 'status'
                 send_cal_command(False) 

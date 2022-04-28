@@ -27,6 +27,9 @@ import csv
 import paho.mqtt.client as mqtt
 from sparkplug_b import *
 
+
+
+
 # Application constants
 APP_VERSION             = '1.0'
 COMMS_VERSION           = 2
@@ -45,6 +48,10 @@ module_is_alive      = False
 compatible_version   = False
 gui_controls_created = False
 message_seq          = 0
+cal_started = False
+
+
+
 
 date_string = datetime.datetime.now().strftime( '%Y-%m-%d' )
 LOG_FILENAME = f'thermistorMux_test_log_{date_string}.csv'
@@ -277,6 +284,7 @@ def on_connect( client, userdata, flags, rc ):
 def on_message( client, userdata, msg ):
     global module_is_alive
     global compatible_version
+    global cal_started
 
     if option_no_GUI:
         # Insert blank lines to separate the message from the CLI prompt
@@ -328,12 +336,15 @@ def on_message( client, userdata, msg ):
         # Update the values of the node metrics
         update_metrics( None, payload, set_alias = False )
 
-        for metric in Metrics:
-            if metric.name.startswith( 'Node Control/Calibration INW' ):
-                if metric.value is True:
-                    send_cal_command(False, True)
+        if (cal_started):
+            for metric in Metrics:
+                if metric.name.startswith( 'Node Control/Calibration INW' ):
+                    if metric.value is True:
+                        send_cal_command(False, True)
+            cal_started = False
 
 
+        log_data_to_CSV( payload.timestamp, msg.topic )
         display_metrics( msg.topic, payload, option_log )
     elif msg.topic == NODE_DEATH_TOPIC:
         # Report if Birth/Death Sequence number doesn't match the last NBIRTH
@@ -757,6 +768,7 @@ if option_no_GUI:
                 report( f'Invalid use, CAL must be one of {CAL_OPTIONS}', error = True, always = True )
                 continue
             elif command [ 1 ] == 'yes':
+                cal_started = True
                 send_cal_command(True, False)
             else:
                 command [ 1 ] == 'status'

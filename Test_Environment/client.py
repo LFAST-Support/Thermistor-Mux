@@ -613,13 +613,8 @@ def send_cal_command(temp1, temp2):
         byte_array = bytearray( payload.SerializeToString() )
         client.publish( NODE_CMD_TOPIC, byte_array, 0, False )
         report( f'Calibration temperature 1 is {cal_temp}', always = True )
-        #send_simple_node_command("Node Control/Calibration INW", True)
-
         return True 
-
     elif temp2 is True:
-        #send_simple_node_command("Node Control/Calibration INW", False)
-        #time.sleep(10000)
         report ( 'Please place the thermistors in a controlled temperature environment \nand wait for the temperature to stabilize at 100 C.\n\nPress enter when ready.\n ')
         cal_temp = input( 'Please enter exact calibration temperature 2: ')
         payload = get_cmd_payload()
@@ -628,7 +623,6 @@ def send_cal_command(temp1, temp2):
         byte_array = bytearray( payload.SerializeToString() )
         client.publish( NODE_CMD_TOPIC, byte_array, 0, False )
         report( f'Calibration temperature 2 is {cal_temp}', always = True )
-
         return True 
     else:
         if send_simple_node_command( 'Node Control/Calibrated?', True ):

@@ -324,6 +324,7 @@ bool connect_to_broker(PubSubClient *broker, int br_idx){
  * @brief Returns the seconds since Jan 1, 1970 from the NTP object.
  *
  * @return unsigned long
+***/
 
 unsigned long get_current_time(void){
     return ntp.getUTCEpochTime();
@@ -333,11 +334,11 @@ unsigned long get_current_time(void){
  * @brief Returns the milliseconds since Jan 1, 1970 from the NTP object.
  *
  * @return unsigned long long
+***/
 
 unsigned long long get_current_time_millis(void){
     return ntp.getUTCEpochMillis();
 }
-***/
 // Check to see if a received message is a Node command (NCMD) message.  If it
 // is, handle it and return true, even if it's invalid; otherwise return false.
 bool process_node_cmd_message(char* topic, byte* payload, unsigned int len){
@@ -409,19 +410,16 @@ bool process_node_cmd_message(char* topic, byte* payload, unsigned int len){
             m_nodeCalibrationINW = true;
             for(int br_idx = 0; br_idx < NUM_BROKERS; br_idx++){
                 set_up_next_payload();
-                publish_metrics(&m_broker[br_idx], 1, nodeBirthTopic.c_str(),
-                                true, ARRAY_AND_SIZE(NodeMetrics));
+                publish_metrics(&m_broker[br_idx], 1, nodeBirthTopic.c_str(), true, ARRAY_AND_SIZE(NodeMetrics));
+                m_nodeCalibrationINW = false; 
             }
-            delay(10000);
-            m_nodeCalibrationINW = false; 
-            for(int br_idx = 0; br_idx < NUM_BROKERS; br_idx++){
-                set_up_next_payload();
-                publish_metrics(&m_broker[br_idx], 1, nodeBirthTopic.c_str(),
-                                true, ARRAY_AND_SIZE(NodeMetrics));
-            }
-
             break;
         case NMA_CalibrationTemp2:
+            for(int br_idx = 0; br_idx < NUM_BROKERS; br_idx++){
+                set_up_next_payload();
+                publish_metrics(&m_broker[br_idx], 1, nodeBirthTopic.c_str(), true, ARRAY_AND_SIZE(NodeMetrics));
+                m_nodeCalibrationINW = false; 
+            }
             m_nodeCalibrationINW = metric->value.boolean_value;
             m_calTemp2 = metric->value.float_value;
             cal_thermistor(m_calTemp2, 2);
@@ -430,9 +428,6 @@ bool process_node_cmd_message(char* topic, byte* payload, unsigned int len){
             m_nodeCalibrationINW = metric->value.boolean_value;
             if(!update_metric(ARRAY_AND_SIZE(NodeMetrics), &m_nodeCalibrationINW))
                 DebugPrint(cf_sparkplug_error);
-            if(m_nodeRebirth)
-                // Publish birth messages again
-                DebugPrint("Calibration in progress.");
             break;
         default:
             DebugPrintNoEOL("Unhandled Node metric alias: ");
@@ -531,8 +526,6 @@ void publish_calibration_status(bool status){
     if (status == true){
         m_nodeCalibrated = true;
     }
-
-
 }
 
 /**
@@ -541,12 +534,12 @@ void publish_calibration_status(bool status){
  *
  * @return true if a sync event occurred TODO: verify this
  * @return false if we failed to sync
- 
+ */
+
 bool update_ntp(void){
     ntp.update();
     return ntp.updated();
 }
-*/
 
 /**
  * @brief Sets the name of topics and the device ID based on the module ID
@@ -605,7 +598,7 @@ bool network_init(void){
     }
 
     // Point to our function for getting timestamps
-    //set_gettimestamp_callback(get_current_time_millis);
+    set_gettimestamp_callback(get_current_time_millis);
 
     IPAddress ip = MUX0_IP;      // This device's IP
     IPAddress dns(DNS);          // DNS server
@@ -665,9 +658,6 @@ bool network_init(void){
         m_broker[i].setCallback(callback_worker);
         m_broker[i].setBufferSize(BIN_BUF_SIZE);
     }
-
-    //m_conversionFactor = m_moduleConversionParams[hardware_id].factor;
-    //m_units            = m_moduleConversionParams[hardware_id].units;
 
     // Network has been set up successfully
     return true;

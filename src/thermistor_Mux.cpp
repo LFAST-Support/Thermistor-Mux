@@ -40,14 +40,30 @@ Questions:
 #define CS 10
 #define INTERRUPT_PIN 23
 
+/*
+Array representing 32 Mosfets
+mosfet[0] = header pin 0; mosfet Q1
+mosfet[1] = header pin 1; mosfet Q2
+...
+mosfet[31] = header pin 22; mosfet Q32
+*/
+static unsigned int mosfet[32] = {0,1,2,3,4,5,6,7,8,9,24,25,26,27,28,29,30,31,
+                                  32,36,37,40,41,14,15,16,17,18,19,20,21,22};                                 
+static int irqFlag = 0;
+static float cal_data1[32] = {0.00};
+static float cal_data2[32] = {0.00};
+unsigned int eeAddr;
+
+
+
 bool setup_successful = false;
 int mosfetRef;
-
 void IRQ() {
   irqFlag = 1;
 }
 
-float cal_thermistor(float set_temp){
+float cal_thermistor(float set_temp, int tempNum){
+    eeAddr = 1;
     irqFlag = 0;
     Serial.printf("Set temp is %0.2f, calibration begun.\n", set_temp);
     setThermistorMuxRead();
@@ -62,19 +78,32 @@ float cal_thermistor(float set_temp){
         irqFlag = 0;
 
         float actual_temp = read_ADCDATA();
-        cal_data[mosfetRef] = set_temp - actual_temp;  
 
-        Serial.printf("Read thermistor temp = %0.2f \nCalculated cal value = %0.2f \n", actual_temp, cal_data[mosfetRef]);
-        digitalWrite(mosfet[mosfetRef], LOW);
+        if (tempNum == 1) {
+          Serial.println("Cal data 1 INW");
+          cal_data1[mosfetRef] = set_temp - actual_temp; 
+        } 
+        else if (tempNum == 2) {
+          Serial.println("Cal data 2 INW");
+          cal_data2[mosfetRef] = (actual_temp - cal_data1[mosfetRef]) / set_temp;
+        }
+         digitalWrite(mosfet[mosfetRef], LOW);
+
+        Serial.printf("Read thermistor temp = %0.2f Calculated cal value 1 = %0.2f, cal value 2 = %0.2f\n", actual_temp, cal_data1[mosfetRef], cal_data2[mosfetRef]);
+        EEPROM.put(eeAddr, cal_data1[mosfetRef]);
+        eeAddr += sizeof(cal_data1[mosfetRef]); //Move address to the next byte after float 'f'.
+        EEPROM.put(eeAddr, cal_data2[mosfetRef]);
+        eeAddr += sizeof(cal_data2[mosfetRef]); //Move address to the next byte after float 'f'.
     }
+    EEPROM.write(0, 0x01);
     Serial.println("Calibration complete.");
     return (0);
 }
 
 
 void setup() {
-  Serial.begin(9600); //For debugging
-  //EEPROM.write(0x00, 0x00);
+
+
 
   //MOSFET digital control I/O ports, set to output. All MOSFETS turned off (pins set to LOW).
   for (int mosfetRef = 0; mosfetRef < 32; mosfetRef++) {
@@ -102,7 +131,23 @@ void setup() {
   else {
     Serial.println("Setup Failed.");
   }
-  //cal_thermistor(0);
+
+  if (EEPROM.read(0) == 0x01) {
+    eeAddr = 1;
+    mosfetRef = 0;
+    Serial.println("If routine entered.");
+    int eeAddr_last = 0;
+    while (eeAddr_last < 64) {
+      EEPROM.get(eeAddr, cal_data1[mosfetRef]);
+      Serial.printf("EEPROM cal data 1 %d: %0.2f.\n", mosfetRef + 1, cal_data1[mosfetRef]);
+      eeAddr += sizeof(cal_data1[mosfetRef]); //Move address to the next byte after float 'f'.
+      EEPROM.get(eeAddr, cal_data2[mosfetRef]);
+      Serial.printf("EEPROM cal data 2 %d: %0.2f.\n", mosfetRef + 1, cal_data2[mosfetRef]);
+      eeAddr += sizeof(cal_data2[mosfetRef]); //Move address to the next byte after float 'f'.
+      eeAddr_last = eeAddr_last + 2;
+      mosfetRef++;
+    }
+  }
 }
 
 
@@ -158,8 +203,8 @@ void loop() {
 
   Serial.printf("Internal ADC temperature: %0.2f C\n", ADC_internal_temp);
   for (mosfetRef = 0; mosfetRef < 32; mosfetRef++){
-    thermistor_temp[mosfetRef] = thermistor_temp[mosfetRef] + cal_data[mosfetRef];
-    Serial.printf("Thermistor %d temperature + %0.2f cal data: %0.2f C\n",mosfetRef + 1, cal_data[mosfetRef], thermistor_temp[mosfetRef]);
+    thermistor_temp[mosfetRef] = (thermistor_temp[mosfetRef] - cal_data1[mosfetRef]) / cal_data2[mosfetRef];
+    Serial.printf("Thermistor %d temperature: %0.2f - cal data1:  %0.2f divided by cal data2: %0.2f C\n",mosfetRef + 1, thermistor_temp[mosfetRef], cal_data1[mosfetRef], cal_data2[mosfetRef]);
   }
   Serial.println();
   publish_data(thermistor_temp, ADC_internal_temp);

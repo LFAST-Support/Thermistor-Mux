@@ -37,6 +37,7 @@ bool update_ntp();
 unsigned long get_current_time();
 unsigned long long get_current_time_millis();
 void decode_cal_data();
+void publish_calibration_status(bool);
 
 
 #endif

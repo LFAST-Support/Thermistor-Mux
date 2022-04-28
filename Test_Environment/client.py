@@ -82,8 +82,11 @@ Metrics = (
     [ MetricSpec( None, 'Node Control/Reboot',               'strip to /', False ) ] +
     [ MetricSpec( None, 'Node Control/Rebirth',              'strip to /', False ) ] +
     [ MetricSpec( None, 'Node Control/Next Server',          'strip to /', False ) ] +
-    [ MetricSpec( None, 'Node Control/Calibration Temperature',      'strip to /', False ) ] +
-    [ MetricSpec( None, f'Node Control/Calibrate',                'strip to /', False ) ]
+    [ MetricSpec( None, 'Node Control/Calibration Temperature 1',      'strip to /', False ) ] +
+    [ MetricSpec( None, 'Node Control/Calibration Temperature 2',      'strip to /', False ) ] +
+    [ MetricSpec( None, 'Node Control/Calibrated?',                'strip to /', False ) ] +
+    [ MetricSpec( None, 'Node Control/Calibration INW',                'strip to /', False ) ]
+
     )
 
 # Reset the aliases and/or values for all the metrics of the specified device
@@ -324,6 +327,13 @@ def on_message( client, userdata, msg ):
 
         # Update the values of the node metrics
         update_metrics( None, payload, set_alias = False )
+
+        for metric in Metrics:
+            if metric.name.startswith( 'Node Control/Calibration INW' ):
+                if metric.value is True:
+                    send_cal_command(False, True)
+
+
         display_metrics( msg.topic, payload, option_log )
     elif msg.topic == NODE_DEATH_TOPIC:
         # Report if Birth/Death Sequence number doesn't match the last NBIRTH
@@ -556,10 +566,10 @@ def add_metric_as_alias( payload, device, metric_name, metric_type, metric_value
     addMetric( payload, metric_name, metric_alias, metric_type, metric_value )
 
 # Send an NCMD message with a single Boolean metric set to True
-def send_simple_node_command( metric_name ):
+def send_simple_node_command( metric_name, value ):
     try:
         payload = get_cmd_payload()
-        add_metric_as_alias( payload, None, metric_name, MetricDataType.Boolean, True )
+        add_metric_as_alias( payload, None, metric_name, MetricDataType.Boolean, value )
         byte_array = bytearray( payload.SerializeToString() )
         client.publish( NODE_CMD_TOPIC, byte_array, 0, False )
         return True
@@ -569,41 +579,62 @@ def send_simple_node_command( metric_name ):
 
 # Ask the node to send out its birth messages
 def request_rebirth():
-    send_simple_node_command( 'Node Control/Rebirth' )
+    send_simple_node_command( 'Node Control/Rebirth', True )
 
 # Ask the node to reboot
 def reboot_module():
-    if send_simple_node_command( 'Node Control/Reboot' ):
+    if send_simple_node_command( 'Node Control/Reboot', True ):
         report( 'Module commanded to reboot', always = True )
 
 def reboot_button_handler():
     reboot_module()
 
 # Add a metric to the payload to set the voltage on a DAC
-def add_cal_temp_metric( payload, cal_temp ):
+def add_cal_temp_metric( payload, cal_temp, tempNum ):
     #if cal_temp < 0 or cal_temp >= 100:
     #    report( f'Calibration temperature out of range, must be 0 to 100 degrees Celsius.', error = True, always = True )
     #    return False
-    cal_temp = int (cal_temp)
+    cal_temp = float (cal_temp)
     try:
-        add_metric_as_alias( payload, None, f'Node Control/Calibration Temperature', MetricDataType.Float, cal_temp )
+        add_metric_as_alias( payload, None, f'Node Control/Calibration Temperature {tempNum}', MetricDataType.Float, cal_temp )
     except ValueError:
-        report( f'Unrecognized metric: "Node Control/Calibration Temperature', error = True, always = True )
+        report( f'Unrecognized metric: "Node Control/Calibration Temperature {tempNum}', error = True, always = True )
         return False
     return True
 
-def send_cal_command(cal, cal_temp):
-    if cal is True:
+def send_cal_command(temp1, temp2):
+
+    if temp1 is True:
+        report ( 'Please place the thermistors in a controlled temperature environment\nand wait for the temperature to stabilize at 0 C. \n ')
+        cal_temp = input( 'Please enter exact calibration temperature 1: ')
         payload = get_cmd_payload()
-        if not add_cal_temp_metric( payload, cal_temp ):
+        if not add_cal_temp_metric( payload, cal_temp, 1 ):
             return False
         byte_array = bytearray( payload.SerializeToString() )
         client.publish( NODE_CMD_TOPIC, byte_array, 0, False )
-        report( f'Calibration temperature is {cal_temp}', always = True )
-        return True   
+        report( f'Calibration temperature 1 is {cal_temp}', always = True )
+        #send_simple_node_command("Node Control/Calibration INW", True)
+
+        return True 
+
+    elif temp2 is True:
+        #send_simple_node_command("Node Control/Calibration INW", False)
+        #time.sleep(10000)
+        report ( 'Please place the thermistors in a controlled temperature environment \nand wait for the temperature to stabilize at 100 C.\n\nPress enter when ready.\n ')
+        cal_temp = input( 'Please enter exact calibration temperature 2: ')
+        payload = get_cmd_payload()
+        if not add_cal_temp_metric( payload, cal_temp, 2 ):
+            return False
+        byte_array = bytearray( payload.SerializeToString() )
+        client.publish( NODE_CMD_TOPIC, byte_array, 0, False )
+        report( f'Calibration temperature 2 is {cal_temp}', always = True )
+
+        return True 
     else:
-        if send_simple_node_command( 'Node Control/Calibrate' ):
+        if send_simple_node_command( 'Node Control/Calibrated?', True ):
             report( 'Module calibration status requested', always = True )
+
+    
              
 # Main program starts here
 
@@ -732,12 +763,10 @@ if option_no_GUI:
                 report( f'Invalid use, CAL must be one of {CAL_OPTIONS}', error = True, always = True )
                 continue
             elif command [ 1 ] == 'yes':
-                report ( 'Please place the thermistors in a controlled temperature environment \nand wait for the temperature to stabilize at desired value. \n ')
-                cal_temp = input( 'Please enter calibration temperature: ')
-                send_cal_command(True, cal_temp)
+                send_cal_command(True, False)
             else:
                 command [ 1 ] == 'status'
-                send_cal_command(False) 
+                send_cal_command(False, False) 
             
 
 

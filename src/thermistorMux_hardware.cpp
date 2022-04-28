@@ -29,6 +29,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #define MISO 12
 #define SCK 13
 
+static int hardware_id = -1;
+
 static SPISettings settingsA(5000000, MSBFIRST, SPI_MODE0);
 
 bool initTeensySPI() {

@@ -80,21 +80,4 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #define ID_PIN_3 34
 #define ID_PIN_4 33
 
-static int hardware_id = -1;
-
-/*
-Array representing 32 Mosfets
-mosfet[0] = header pin 0; mosfet Q1
-mosfet[1] = header pin 1; mosfet Q2
-...
-mosfet[31] = header pin 22; mosfet Q32
-*/
-static unsigned int mosfet[32] = {0,1,2,3,4,5,6,7,8,9,24,25,26,27,28,29,30,31,
-                                  32,36,37,40,41,14,15,16,17,18,19,20,21,22};                                 
-static int irqFlag = 0;
-static float cal_data[32];
-
-
-
-
 #endif

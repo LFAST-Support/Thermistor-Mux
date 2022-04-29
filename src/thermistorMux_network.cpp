@@ -412,6 +412,7 @@ bool process_node_cmd_message(char* topic, byte* payload, unsigned int len){
             m_nodeCalibrationINW = metric->value.boolean_value;
             m_calTemp1 = metric->value.float_value;
             cal_thermistor(m_calTemp1, 1);
+            m_nodeCalibrated = false;
             m_nodeCalibrationINW = true;
             for(int br_idx = 0; br_idx < NUM_BROKERS; br_idx++){
                 set_up_next_payload();

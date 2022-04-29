@@ -27,9 +27,6 @@ import csv
 import paho.mqtt.client as mqtt
 from sparkplug_b import *
 
-
-
-
 # Application constants
 APP_VERSION             = '1.0'
 COMMS_VERSION           = 2
@@ -42,7 +39,7 @@ DEFAULT_BROKER_URL      = 'localhost'
 DEFAULT_BROKER_PORT     = 1883
 DEFAULT_MODULE_ID       = 0
 SHOW_OPTIONS            = [ 'none', 'errors', 'topic', 'changed', 'all' ]
-CAL_OPTIONS             = [ 'yes', 'status', 'clear' ]
+CAL_OPTIONS             = [ 'temp1', 'temp2', 'status', 'clear' ]
 
 module_is_alive      = False
 compatible_version   = False
@@ -50,11 +47,9 @@ gui_controls_created = False
 message_seq          = 0
 cal_started = False
 
-
-
-
 date_string = datetime.datetime.now().strftime( '%Y-%m-%d' )
 LOG_FILENAME = f'thermistorMux_test_log_{date_string}.csv'
+
 
 # Convert a timestamp in milliseconds to a string
 def timestamp_str( timestamp ):
@@ -157,12 +152,17 @@ def show_usage():
     print( f'      BROKER_PORT = port number of MQTT broker (default {DEFAULT_BROKER_PORT})' )
     print( f'      MODULE_ID = the Thermistor Mux module number to contact (0-{NUM_MODULES - 1}, default {DEFAULT_MODULE_ID})' )
     print( f'      reboot = send the Reboot command to the module' )
-    print( f'      show = what to display on the command-line interface when a message is received, where SHOW_WHAT is one of:' )
+    print( f'      show SHOW_WHAT = what to display on the command-line interface when a message is received, where SHOW_WHAT is one of:' )
     print( f'          none = don\'t display anything' )
     print( f'          errors = just display errors in incoming messages' )
     print( f'          topic = just display the message topic and errors' )
     print( f'          changed = display the message topic and only those metrics it contains (the default)' )
     print( f'          all = display the message topic and all the metrics from this module' )
+    print( f'      calibrate CAL_OPTIONS = check calibration status, calibrate thermistors or clear calibration data, where CAL_OPTIONS is one of:')
+    print( f'          temp1 = runs calibration routine for first temperature extreme. (Will set Calibration INW to true)')
+    print( f'          temp2 = runs calibration routine for second temperature extreme')      
+    print( f'          status = Displays thermistor mux calibration status.')
+    print( f'          clear = Permanently deletes stored calibration data. (Temperature displayed will be then be raw values)')
     print( f'      log = log inbound data messages to a CSV file with filename thermistorMux_test_log_DATE.csv' )
     print( f'      exit = exit as soon as command-line commands are issued' )
     sys.exit()
@@ -334,16 +334,6 @@ def on_message( client, userdata, msg ):
 
         # Update the values of the node metrics
         update_metrics( None, payload, set_alias = False )
-
-        if (cal_started):
-            for metric in Metrics:
-                if metric.name.startswith( 'Node Control/Calibration INW' ):
-                    if metric.value is True:
-                        send_cal_command(False, True, False)
-            cal_started = False
-
-
-        log_data_to_CSV( payload.timestamp, msg.topic )
         display_metrics( msg.topic, payload, option_log )
     elif msg.topic == NODE_DEATH_TOPIC:
         # Report if Birth/Death Sequence number doesn't match the last NBIRTH
@@ -616,7 +606,7 @@ def add_cal_temp_metric( payload, cal_temp, tempNum ):
 def send_cal_command(temp1, temp2, clear):
 
     if temp1 is True:
-        report ( 'Please place the thermistors in a controlled temperature environment\nand wait for the temperature to stabilize at 0 C. \n ')
+        report ( 'Please place the thermistors in a controlled temperature environment\nand wait for the temperature to stabilize at 0 C.\n\n ')
         cal_temp = input( 'Please enter exact calibration temperature 1: ')
         payload = get_cmd_payload()
         if not add_cal_temp_metric( payload, cal_temp, 1 ):
@@ -626,7 +616,7 @@ def send_cal_command(temp1, temp2, clear):
         report( f'Calibration temperature 1 is {cal_temp}', always = True )
         return True 
     elif temp2 is True:
-        report ( 'Please place the thermistors in a controlled temperature environment \nand wait for the temperature to stabilize at 100 C.\n\nPress enter when ready.\n ')
+        report ( 'Please place the thermistors in a controlled temperature environment \nand wait for the temperature to stabilize at 100 C.\n\n ')
         cal_temp = input( 'Please enter exact calibration temperature 2: ')
         payload = get_cmd_payload()
         if not add_cal_temp_metric( payload, cal_temp, 2 ):
@@ -773,9 +763,11 @@ if option_no_GUI:
             if command[ 1 ] not in CAL_OPTIONS:
                 report( f'Invalid use, CAL must be one of {CAL_OPTIONS}', error = True, always = True )
                 continue
-            elif command [ 1 ] == 'yes':
-                cal_started = True
-                send_cal_command(True, False, False)
+            elif command [ 1 ] == 'temp1':
+                #cal_started = True
+                    send_cal_command(True, False, False)
+            elif command [ 1 ] == 'temp2':
+                    send_cal_command(False, True, False)
             elif command [ 1 ] == 'clear':
                 send_cal_command(False, False, True)
             else:
@@ -797,9 +789,11 @@ if option_no_GUI:
             print( f'        topic = just display the message topic and errors' )
             print( f'        changed = display the message topic and only those metrics it contains' )
             print( f'        all = display the message topic and all the metrics from this module' )
-            print( f'    calibrate CAL = check calibration status or calibrate thermistors:')
-            print( f'        yes = runs calibration routine')
-            print( f'        status = checks if calibration data exists for thermistor mux')
+            print( f'    calibrate CAL_OPTIONS = check calibration status, calibrate thermistors or clear calibration data, where CAL_OPTIONS is one of:')
+            print( f'        temp1 = runs calibration routine for first temperature extreme. (Will set Calibration INW to true)')
+            print( f'        temp2 = runs calibration routine for second temperature extreme.')
+            print( f'        status = Displays thermistor mux calibration status.')
+            print( f'        clear = Permanently deletes stored calibration data. (Temperature displayed will be then be raw values)')
             print( f'    log = toggle logging data messages to CSV on or off' )
             print( f'    quit, exit, <Ctrl-D> = stop this program' )
             print( f'    help, h, ? = display this list of commands' )

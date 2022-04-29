@@ -14,7 +14,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 /**
  * @file thermistor_Mux.cpp
  * @author Nestor Garcia (Nestor212@email.arizona.edu)
- * @brief Main file, complete code cycles through 32 mosfets; each conencted to a thermistor,
+ * @brief Main file, complete code cycles through NUMBER_OF_THERMISTORS mosfets; each conencted to a thermistor,
  * and uses ADC module MC3561R to convert analog to digital data. Internal temperature data of
  * ADC chip is also gathered. 
  * @version INW
@@ -47,11 +47,11 @@ mosfet[1] = header pin 1; mosfet Q2
 ...
 mosfet[31] = header pin 22; mosfet Q32
 */
-static unsigned int mosfet[32] = {0,1,2,3,4,5,6,7,8,9,24,25,26,27,28,29,30,31,
-                                  32,36,37,40,41,14,15,16,17,18,19,20,21,22};                                 
+static unsigned int mosfet[NUMBER_OF_THERMISTORS] = {0,1,2,3,4,5,6,7,8,9,24,25,26,27,28,29,30,31,
+                                  NUMBER_OF_THERMISTORS,36,37,40,41,14,15,16,17,18,19,20,21,22};                                 
 static int irqFlag = 0;
-static float cal_data1[32] = {0.00};
-static float cal_data2[32] = {0.00};
+static float cal_data1[NUMBER_OF_THERMISTORS] = {0.00};
+static float cal_data2[NUMBER_OF_THERMISTORS] = {0.00};
 unsigned int eeAddr;
 bool setup_successful = false;
 int mosfetRef;
@@ -77,7 +77,7 @@ bool clear_cal_data() {
     eeAddr_last = eeAddr_last + 2;
     mosfetRef++;
   }
-  for( mosfetRef = 0; mosfetRef < 32; mosfetRef++){
+  for( mosfetRef = 0; mosfetRef < NUMBER_OF_THERMISTORS; mosfetRef++){
     cal_data1[mosfetRef] = {0.00};
     cal_data2[mosfetRef] = {0.00};
   }
@@ -92,7 +92,7 @@ bool cal_thermistor(float set_temp, int tempNum){
     Serial.printf("Set temp is %0.2f, calibration begun.\n", set_temp);
     setThermistorMuxRead();
     delay(1);
-    for(int mosfetRef = 0; mosfetRef < 32; mosfetRef++) {
+    for(int mosfetRef = 0; mosfetRef < NUMBER_OF_THERMISTORS; mosfetRef++) {
         digitalWrite(mosfet[mosfetRef], HIGH);
         start_conversion();
         
@@ -134,7 +134,7 @@ bool cal_thermistor(float set_temp, int tempNum){
 
 void setup() {
   //MOSFET digital control I/O ports, set to output. All MOSFETS turned off (pins set to LOW).
-  for (int mosfetRef = 0; mosfetRef < 32; mosfetRef++) {
+  for (int mosfetRef = 0; mosfetRef < NUMBER_OF_THERMISTORS; mosfetRef++) {
     pinMode(mosfet[mosfetRef], OUTPUT);  
     digitalWrite(mosfet[mosfetRef], LOW);
   }
@@ -179,7 +179,7 @@ void setup() {
 
 void loop() {
   int avgCount = 0;
-  float thermistor_temp[32] = {0.00};
+  float thermistor_temp[NUMBER_OF_THERMISTORS] = {0.00};
   float ADC_internal_temp = 0;
 
   check_brokers();
@@ -191,7 +191,7 @@ void loop() {
   while(avgCount < 10) {
     setThermistorMuxRead();
     delay(1);
-    for(mosfetRef = 0; mosfetRef < 32; mosfetRef++) {
+    for(mosfetRef = 0; mosfetRef < NUMBER_OF_THERMISTORS; mosfetRef++) {
       digitalWrite(mosfet[mosfetRef], HIGH);
       start_conversion();
       
@@ -230,13 +230,13 @@ void loop() {
   Serial.printf("Internal ADC temperature: %0.2f °C\n", ADC_internal_temp);
 
   if (calibrated == true) {
-    for (mosfetRef = 0; mosfetRef < 32; mosfetRef++){
+    for (mosfetRef = 0; mosfetRef < NUMBER_OF_THERMISTORS; mosfetRef++){
       thermistor_temp[mosfetRef] = (thermistor_temp[mosfetRef] - cal_data1[mosfetRef]) / cal_data2[mosfetRef];
       Serial.printf("Thermistor %d temperature: (raw temp - %0.2f) / %0.2f =  %0.2f °C\n",mosfetRef + 1, cal_data1[mosfetRef], cal_data2[mosfetRef], thermistor_temp[mosfetRef]);
     }
   }
   else {
-    for (mosfetRef = 0; mosfetRef < 32; mosfetRef++){
+    for (mosfetRef = 0; mosfetRef < NUMBER_OF_THERMISTORS; mosfetRef++){
       Serial.printf("Thermistor uncalibrated temperature = %0.2f °C\n", thermistor_temp[mosfetRef]);
     }
   }

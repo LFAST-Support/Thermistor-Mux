@@ -80,4 +80,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #define ID_PIN_3 34
 #define ID_PIN_4 33
 
+#define NUMBER_OF_THERMISTORS 32
+
+
 #endif

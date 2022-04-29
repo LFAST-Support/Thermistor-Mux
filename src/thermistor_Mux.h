@@ -29,7 +29,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #ifndef THERMISTOR_MUX_H
 #define THERMISTOR_MUX_H
 
-float cal_thermistor(float set_temp, int tempNum);
+bool cal_thermistor(float set_temp, int tempNum);
+bool clear_cal_data();
 
 #endif
 

@@ -47,7 +47,7 @@ And check of these functions will work on this board
 #define READ_RESTART() (*(volatile uint32_t *)RESTART_ADDR)
 #define WRITE_RESTART(val) ((*(volatile uint32_t *)RESTART_ADDR) = (val))
 
-#define NUMBER_MUX_CHANNELS 32
+#define NUMBER_THERMISTORS 32
 #define MUX_VERSION_COMPLETE "1v1"
 
 
@@ -113,9 +113,9 @@ static uint64_t m_commsVersion        = COMMS_VERSION;
 static const char *m_firmwareVersion  = MUX_VERSION_COMPLETE;
 static float    m_calTemp1            = {0.0};
 static float    m_calTemp2            = {0.0};
-static float    m_calData[NUMBER_MUX_CHANNELS]    = {0.00};
-static const char *m_units           = "degrees Celsius";  // The user units
-static float    m_THERMISTOR[NUMBER_MUX_CHANNELS] = {0.0};
+static float    m_calData[NUMBER_THERMISTORS]    = {0.00};
+static const char *m_units           = "°C";  // The user units
+static float    m_THERMISTOR[NUMBER_THERMISTORS] = {0.0};
 static float    m_ADC_temperature = 0.0;
 
 // Alias numbers for each of the node metrics
@@ -527,7 +527,7 @@ void callback_worker(char* topic, byte* payload, unsigned int len){
  */
 void publish_data(float* THERMISTOR_data, float ADC_temperature){
     // Store new THERMISTOR data, converting from raw THERMISTOR values to user units
-    for(int i = 0; i < NUMBER_MUX_CHANNELS; i++){
+    for(int i = 0; i < NUMBER_THERMISTORS; i++){
         m_THERMISTOR[i] = THERMISTOR_data[i];
         if(!update_metric(ARRAY_AND_SIZE(NodeMetrics), &m_THERMISTOR[i]))
             DebugPrint(cf_sparkplug_error);

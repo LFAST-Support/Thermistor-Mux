@@ -146,7 +146,7 @@ def update_metrics( device, payload, set_alias = False ):
 # Display how this program should be called, then exit
 def show_usage():
     print( f'Thermistor Mux Client v{APP_VERSION}' )
-    print( f'Usage: {sys.argv[ 0 ]} [no_gui] [broker=[BROKER_IP][=BROKER_PORT]] [module=MODULE_ID] [reboot] [dac=NUMBER=VOLTAGE] [show=SHOW_WHAT] [log] [exit]' )
+    print( f'Usage: {sys.argv[ 0 ]} [no_gui] [broker=[BROKER_IP][=BROKER_PORT]] [module=MODULE_ID] [reboot] [show=SHOW_WHAT] [log] [exit]' )
     print( f'where no_gui = run the command-line interface instead of the GUI' )
     print( f'      BROKER_IP = hostname or IP address of MQTT broker (default {DEFAULT_BROKER_URL})' )
     print( f'      BROKER_PORT = port number of MQTT broker (default {DEFAULT_BROKER_PORT})' )
@@ -158,11 +158,6 @@ def show_usage():
     print( f'          topic = just display the message topic and errors' )
     print( f'          changed = display the message topic and only those metrics it contains (the default)' )
     print( f'          all = display the message topic and all the metrics from this module' )
-    print( f'      calibrate CAL_OPTIONS = check calibration status, calibrate thermistors or clear calibration data, where CAL_OPTIONS is one of:')
-    print( f'          temp1 = runs calibration routine for first temperature extreme. (Will set Calibration INW to true)')
-    print( f'          temp2 = runs calibration routine for second temperature extreme')      
-    print( f'          status = Displays thermistor mux calibration status.')
-    print( f'          clear = Permanently deletes stored calibration data. (Temperature displayed will be then be raw values)')
     print( f'      log = log inbound data messages to a CSV file with filename thermistorMux_test_log_DATE.csv' )
     print( f'      exit = exit as soon as command-line commands are issued' )
     sys.exit()
@@ -464,10 +459,10 @@ def display_metrics( topic, payload, save_to_log ):
     for metric in Metrics:
         if metric.value == None:
             metric.value_str = f'{metric.value}'
-        elif metric.name.startswith( 'Inputs/Thermistor Temp' ):
-            metric.value_str = f'{metric.value:.6f} C'
+        elif metric.name.startswith( 'Inputs/THERMISTOR' ):
+            metric.value_str = f'{metric.value:.2f} °C'
         elif metric.name == 'Inputs/ADC Internal Temperature':
-            metric.value_str = f'{metric.value:.6f} C'
+            metric.value_str = f'{metric.value:.2f} °C'
         else:
             metric.value_str = f'{metric.value}'
 

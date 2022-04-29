@@ -227,17 +227,17 @@ void loop() {
     avgCount++;
   }
 
-  Serial.printf("Internal ADC temperature: %0.2f C\n", ADC_internal_temp);
+  Serial.printf("Internal ADC temperature: %0.2f °C\n", ADC_internal_temp);
 
   if (calibrated == true) {
     for (mosfetRef = 0; mosfetRef < 32; mosfetRef++){
       thermistor_temp[mosfetRef] = (thermistor_temp[mosfetRef] - cal_data1[mosfetRef]) / cal_data2[mosfetRef];
-      Serial.printf("Thermistor %d temperature: (raw temp - %0.2f) / %0.2f =  %0.2f C\n",mosfetRef + 1, cal_data1[mosfetRef], cal_data2[mosfetRef], thermistor_temp[mosfetRef]);
+      Serial.printf("Thermistor %d temperature: (raw temp - %0.2f) / %0.2f =  %0.2f °C\n",mosfetRef + 1, cal_data1[mosfetRef], cal_data2[mosfetRef], thermistor_temp[mosfetRef]);
     }
   }
   else {
     for (mosfetRef = 0; mosfetRef < 32; mosfetRef++){
-      Serial.printf("Thermistor uncalibrated temperature = %0.2f C\n", thermistor_temp[mosfetRef]);
+      Serial.printf("Thermistor uncalibrated temperature = %0.2f °C\n", thermistor_temp[mosfetRef]);
     }
   }
   Serial.println();

@@ -49,9 +49,15 @@ either the user or system folder should work.  Mine is placed in
 * Calibration of the thermistors must be accomplished through the client. 
 * Calibration is split into two parts, to gather two temperature extremes for a linear calibration function calculation.   
 * Entering the following commands into the command-line client will accomplish the calibration:
-*   calibrate temp1: Thermistors are placed at 0 celsius and raw data is collected & stored into EEPROM by firmware.
+*   calibrate temp1: Thermistors are placed at 0 celsius and raw_Low is collected & stored into EEPROM by firmware.
+*                    ref_Low is stored in EEPROM.
 *   calibrate temp2: Thermistors are placed at 100 celsius and raw data is collected & stored into EEPROM by firmware.
-*     Actual_Temp = 100 * [(raw_data - cal_data0) / (cal_data100 - cal_data0)]
+*                    ref_High is stored in EEPROM.
+* 
+*           Calibrated_Temp = [((raw_Temp - raw_Low) * (ref_Range) / (raw_Range)] + ref_Low;
+*     
+* Source: https://learn.adafruit.com/calibrating-sensors/two-point-calibration
+
 
 
 **Viewing Sparkplug Data with MQTT.fx**

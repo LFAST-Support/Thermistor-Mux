@@ -39,15 +39,17 @@ DEFAULT_BROKER_URL      = 'localhost'
 DEFAULT_BROKER_PORT     = 1883
 DEFAULT_MODULE_ID       = 0
 SHOW_OPTIONS            = [ 'none', 'errors', 'topic', 'changed', 'all' ]
-CAL_OPTIONS             = [ 'yes', 'status' ]
+CAL_OPTIONS             = [ 'temp1', 'temp2', 'status', 'clear' ]
 
 module_is_alive      = False
 compatible_version   = False
 gui_controls_created = False
 message_seq          = 0
+cal_started = False
 
 date_string = datetime.datetime.now().strftime( '%Y-%m-%d' )
 LOG_FILENAME = f'thermistorMux_test_log_{date_string}.csv'
+
 
 # Convert a timestamp in milliseconds to a string
 def timestamp_str( timestamp ):
@@ -72,21 +74,20 @@ class MetricSpec:
         self.timestamp = timestamp_str( None )
 
 Metrics = (
-    [ MetricSpec( None, f'Inputs/THERMISTOR{thermistor + 1}',                  'strip to /', True  ) for thermistor in range( NUM_THERMISTORS ) ] +
-    [ MetricSpec( None, 'Inputs/ADC Internal Temperature',                'strip to /', True  ) ] +
-    [ MetricSpec( None, 'Properties/Conversion Factor',      'strip to /', True  ) ] +
-    [ MetricSpec( None, 'Properties/Units',                  'strip to /', True  ) ] +
-    [ MetricSpec( None, 'Properties/Firmware Version',       'strip to /', True  ) ] +
-    [ MetricSpec( None, 'Properties/Communications Version', 'strip to /', False ) ] +
-    [ MetricSpec( None, 'bdSeq',                             'strip to /', False ) ] +
-    [ MetricSpec( None, 'Node Control/Reboot',               'strip to /', False ) ] +
-    [ MetricSpec( None, 'Node Control/Rebirth',              'strip to /', False ) ] +
-    [ MetricSpec( None, 'Node Control/Next Server',          'strip to /', False ) ] +
-    [ MetricSpec( None, 'Node Control/Calibration Temperature 1',      'strip to /', False ) ] +
-    [ MetricSpec( None, 'Node Control/Calibration Temperature 2',      'strip to /', False ) ] +
-    [ MetricSpec( None, 'Node Control/Calibrated?',                'strip to /', False ) ] +
-    [ MetricSpec( None, 'Node Control/Calibration INW',                'strip to /', False ) ]
-
+    [ MetricSpec( None, f'Inputs/THERMISTOR{thermistor + 1}',       'strip to /', True  ) for thermistor in range( NUM_THERMISTORS ) ] +
+    [ MetricSpec( None, 'Inputs/ADC Internal Temperature',          'strip to /', True  ) ] +
+    [ MetricSpec( None, 'Properties/Units',                         'strip to /', True  ) ] +
+    [ MetricSpec( None, 'Properties/Firmware Version',              'strip to /', True  ) ] +
+    [ MetricSpec( None, 'Properties/Communications Version',        'strip to /', False ) ] +
+    [ MetricSpec( None, 'bdSeq',                                    'strip to /', False ) ] +
+    [ MetricSpec( None, 'Node Control/Reboot',                      'strip to /', False ) ] +
+    [ MetricSpec( None, 'Node Control/Rebirth',                     'strip to /', False ) ] +
+    [ MetricSpec( None, 'Node Control/Next Server',                 'strip to /', False ) ] +
+    [ MetricSpec( None, 'Node Control/Calibration Temperature 1',   'strip to /', False ) ] +
+    [ MetricSpec( None, 'Node Control/Calibration Temperature 2',   'strip to /', False ) ] +
+    [ MetricSpec( None, 'Properties/Calibration Status',            'strip to /', False ) ] +
+    [ MetricSpec( None, 'Node Control/Calibration INW',             'strip to /', False ) ] +
+    [ MetricSpec( None, 'Node Control/Clear Cal Data',              'strip to /', False ) ]
     )
 
 # Reset the aliases and/or values for all the metrics of the specified device
@@ -145,13 +146,13 @@ def update_metrics( device, payload, set_alias = False ):
 # Display how this program should be called, then exit
 def show_usage():
     print( f'Thermistor Mux Client v{APP_VERSION}' )
-    print( f'Usage: {sys.argv[ 0 ]} [no_gui] [broker=[BROKER_IP][=BROKER_PORT]] [module=MODULE_ID] [reboot] [dac=NUMBER=VOLTAGE] [show=SHOW_WHAT] [log] [exit]' )
+    print( f'Usage: {sys.argv[ 0 ]} [no_gui] [broker=[BROKER_IP][=BROKER_PORT]] [module=MODULE_ID] [reboot] [show=SHOW_WHAT] [log] [exit]' )
     print( f'where no_gui = run the command-line interface instead of the GUI' )
     print( f'      BROKER_IP = hostname or IP address of MQTT broker (default {DEFAULT_BROKER_URL})' )
     print( f'      BROKER_PORT = port number of MQTT broker (default {DEFAULT_BROKER_PORT})' )
     print( f'      MODULE_ID = the Thermistor Mux module number to contact (0-{NUM_MODULES - 1}, default {DEFAULT_MODULE_ID})' )
     print( f'      reboot = send the Reboot command to the module' )
-    print( f'      show = what to display on the command-line interface when a message is received, where SHOW_WHAT is one of:' )
+    print( f'      show SHOW_WHAT = what to display on the command-line interface when a message is received, where SHOW_WHAT is one of:' )
     print( f'          none = don\'t display anything' )
     print( f'          errors = just display errors in incoming messages' )
     print( f'          topic = just display the message topic and errors' )
@@ -277,6 +278,7 @@ def on_connect( client, userdata, flags, rc ):
 def on_message( client, userdata, msg ):
     global module_is_alive
     global compatible_version
+    global cal_started
 
     if option_no_GUI:
         # Insert blank lines to separate the message from the CLI prompt
@@ -327,13 +329,6 @@ def on_message( client, userdata, msg ):
 
         # Update the values of the node metrics
         update_metrics( None, payload, set_alias = False )
-
-        for metric in Metrics:
-            if metric.name.startswith( 'Node Control/Calibration INW' ):
-                if metric.value is True:
-                    send_cal_command(False, True)
-
-
         display_metrics( msg.topic, payload, option_log )
     elif msg.topic == NODE_DEATH_TOPIC:
         # Report if Birth/Death Sequence number doesn't match the last NBIRTH
@@ -464,10 +459,10 @@ def display_metrics( topic, payload, save_to_log ):
     for metric in Metrics:
         if metric.value == None:
             metric.value_str = f'{metric.value}'
-        elif metric.name.startswith( 'Inputs/Thermistor Temp' ):
-            metric.value_str = f'{metric.value:.6f} C'
+        elif metric.name.startswith( 'Inputs/THERMISTOR' ):
+            metric.value_str = f'{metric.value:.2f} °C'
         elif metric.name == 'Inputs/ADC Internal Temperature':
-            metric.value_str = f'{metric.value:.6f} C'
+            metric.value_str = f'{metric.value:.2f} °C'
         else:
             metric.value_str = f'{metric.value}'
 
@@ -500,6 +495,7 @@ def show_data_on_command_line( payload ):
                  metric.alias not in payload_metric_aliases ):
                 continue
         print( f'{metric.display_name} at {metric.timestamp} = {metric.value_str}' )
+        
 
 LJUST_DIST = 50
 
@@ -602,10 +598,10 @@ def add_cal_temp_metric( payload, cal_temp, tempNum ):
         return False
     return True
 
-def send_cal_command(temp1, temp2):
+def send_cal_command(temp1, temp2, clear):
 
     if temp1 is True:
-        report ( 'Please place the thermistors in a controlled temperature environment\nand wait for the temperature to stabilize at 0 C. \n ')
+        report ( 'Please place the thermistors in a controlled temperature environment\nand wait for the temperature to stabilize at 0 C.\n\n ')
         cal_temp = input( 'Please enter exact calibration temperature 1: ')
         payload = get_cmd_payload()
         if not add_cal_temp_metric( payload, cal_temp, 1 ):
@@ -615,7 +611,7 @@ def send_cal_command(temp1, temp2):
         report( f'Calibration temperature 1 is {cal_temp}', always = True )
         return True 
     elif temp2 is True:
-        report ( 'Please place the thermistors in a controlled temperature environment \nand wait for the temperature to stabilize at 100 C.\n\nPress enter when ready.\n ')
+        report ( 'Please place the thermistors in a controlled temperature environment \nand wait for the temperature to stabilize at 100 C.\n\n ')
         cal_temp = input( 'Please enter exact calibration temperature 2: ')
         payload = get_cmd_payload()
         if not add_cal_temp_metric( payload, cal_temp, 2 ):
@@ -624,6 +620,12 @@ def send_cal_command(temp1, temp2):
         client.publish( NODE_CMD_TOPIC, byte_array, 0, False )
         report( f'Calibration temperature 2 is {cal_temp}', always = True )
         return True 
+    elif clear is True:
+        confirm = input( 'Are you sure you want to permanently erase calibration data? (enter yes)')
+        if (confirm  == 'yes'):
+            send_simple_node_command("Node Control/Clear Cal Data", True)
+        else:
+            report ('Clear cal data has been aborted.')
     else:
         if send_simple_node_command( 'Node Control/Calibrated?', True ):
             report( 'Module calibration status requested', always = True )
@@ -756,12 +758,19 @@ if option_no_GUI:
             if command[ 1 ] not in CAL_OPTIONS:
                 report( f'Invalid use, CAL must be one of {CAL_OPTIONS}', error = True, always = True )
                 continue
-            elif command [ 1 ] == 'yes':
-                send_cal_command(True, False)
+            elif command [ 1 ] == 'temp1':
+                #cal_started = True
+                    send_cal_command(True, False, False)
+            elif command [ 1 ] == 'temp2':
+                    send_cal_command(False, True, False)
+            elif command [ 1 ] == 'clear':
+                send_cal_command(False, False, True)
             else:
-                command [ 1 ] == 'status'
-                send_cal_command(False, False) 
-            
+                metric = find_metric(None, 'Properties/Calibration Status')
+                metric.value_str = f'{metric.value}'
+                metric.timestamp_str = f'{metric.timestamp}'
+                print( f'{metric.display_name} at {metric.timestamp_str} = {metric.value_str}' )
+                            
 
 
         elif command[ 0 ] == 'help' or command[ 0 ] == 'h' or command[ 0 ] == '?':
@@ -775,9 +784,11 @@ if option_no_GUI:
             print( f'        topic = just display the message topic and errors' )
             print( f'        changed = display the message topic and only those metrics it contains' )
             print( f'        all = display the message topic and all the metrics from this module' )
-            print( f'    calibrate CAL = check calibration status or calibrate thermistors:')
-            print( f'        yes = runs calibration routine')
-            print( f'        status = checks if calibration data exists for thermistor mux')
+            print( f'    calibrate CAL_OPTIONS = check calibration status, calibrate thermistors or clear calibration data, where CAL_OPTIONS is one of:')
+            print( f'        temp1 = runs calibration routine for first temperature extreme. (Will set Calibration INW to true)')
+            print( f'        temp2 = runs calibration routine for second temperature extreme.')
+            print( f'        status = Displays thermistor mux calibration status.')
+            print( f'        clear = Permanently deletes stored calibration data. (Temperature displayed will be then be raw values)')
             print( f'    log = toggle logging data messages to CSV on or off' )
             print( f'    quit, exit, <Ctrl-D> = stop this program' )
             print( f'    help, h, ? = display this list of commands' )

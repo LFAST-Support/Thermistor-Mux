@@ -1,5 +1,5 @@
 # Thermistor_Mux
-This project contains firmware for the Thermistor Mux module, for the LFAST project at the Steward Observatory, University of Arizona.
+This project contains Thermistor Mux card firmware for the LFAST project at the Steward Observatory, University of Arizona.
 The thermistor mux runs on a Teensy 4.1, where 32 of its digital I/O pins are utilized to cycle through 32 mosfets, connected to 32 thermistors,
 thus making it capable of collecting 32 temperature data points. An ADC external to the Teensy is utilized to convert raw analog thermistor data to digital, which is then communicated to the teensy via SPI communication. 
 

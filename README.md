@@ -41,11 +41,11 @@ either the user or system folder should work.  Mine is placed in
 `Documents/Arduino/libraries` on my Windows 10 computer.
 
 ## Test Client
-* The client requires a connection to an MQTT broker. Eclipse Moswuitto was utilized during the writign and testing of the thermistor mux client and firmware. 
+* The client requires a connection to an MQTT broker. Eclipse Mosquitto was utilized during the writing and testing of the thermistor mux client and firmware. 
 * For instructions on installing a mosquitto broker, follow the link below. 
 *       https://mosquitto.org/download/
 *       
-* The `test_environment` folder contains a test client program `client.py` written in Python.  This is an MQTT client that can be used to send MQTT commands via an MQTT broker to a Thermistor Mux module or display MQTT messages published by the Thermistor Mux module.  It currently only runs as a command-line interface.
+* The `test_environment` folder contains a test client program `client.py` written in Python.  This is an MQTT client that can be used to send MQTT commands via an MQTT broker to a Thermistor Mux module and/or display MQTT messages published by the Thermistor Mux module.  It currently only runs as a command-line interface.
 * The Test Client has data logging capabilities.  Inbound messages from the Thermsitor Mux Data topic are optionally logged to a CSV file with filename `thermistorMux_test_log_YYYY-MM-DD.csv` in the folder where the Test Client is run.
 * For detailed instructions on installing the necessary libraries, setting up the test environment and running this application, refer to `test_environment/test_client_Notes.txt`.
 

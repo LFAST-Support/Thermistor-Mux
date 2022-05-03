@@ -12,11 +12,11 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 /**
- * @file set_ADC.h
+ * @file command_ADC.h
  * @author Nestor Garcia (Nestor212@email.arizona.edu)
  * @brief ADC specific definitions and function prototypes for ADC initializtion, changes and 
  * data gathering and analysis.  
- * @version INW
+ * @version (see THERMISTOR_MUX_VERSION in thermistorMux_global.h)
  * @date 2022-03-31
  *
  * @copyright Copyright (c) 2022

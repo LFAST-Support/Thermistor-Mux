@@ -12,10 +12,10 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 /**
- * @file tehermistorMux_hardware.h
+ * @file thermistorMux_hardware.h
  * @author Nestor Garcia (Nestor212@email.arizona.edu)
- * @brief Function prototype(s) for device ID initializtion.
- * @version INW
+ * @brief Function prototype(s) for SPI & device ID initializtion.
+ * @version (see THERMISTOR_MUX_VERSION in thermistorMux_global.h)
  * @date 2022-04-19
  *
  * @copyright Copyright (c) 2022

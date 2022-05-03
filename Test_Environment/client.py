@@ -11,9 +11,10 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 *******************************************************************************/
-Author: Rory Scobie (scobier@email.arizona.edu)
-Brief: Sparkplug/MQTT client to test the Thermistor Mux nodes.  Capable of reading data
-published from them, and publishing commands to them.
+Author: Nestor Garcia (Nestor212@email.arizona.edu)
+Brief: Sparkplug/MQTT client to communicate with and command Thermistor Mux module. 
+Capable of reading data published from them, and publishing commands to them.
+Adapted from SOML VCM firmware https://github.com/Steward-Observatory-ETS/soml_cf_vcm.git
 Adapted from python client example at https://github.com/eclipse/tahu
 """
 
@@ -760,13 +761,17 @@ if option_no_GUI:
                 continue
             elif command [ 1 ] == 'temp1':
                 #cal_started = True
-                    send_cal_command(True, False, False)
+                send_cal_command(True, False, False)
             elif command [ 1 ] == 'temp2':
-                    send_cal_command(False, True, False)
+                send_cal_command(False, True, False)
             elif command [ 1 ] == 'clear':
                 send_cal_command(False, False, True)
             else:
                 metric = find_metric(None, 'Properties/Calibration Status')
+                metric.value_str = f'{metric.value}'
+                metric.timestamp_str = f'{metric.timestamp}'
+                print( f'{metric.display_name} at {metric.timestamp_str} = {metric.value_str}' )
+                metric = find_metric(None, 'Node Contrl/Calibration INW')
                 metric.value_str = f'{metric.value}'
                 metric.timestamp_str = f'{metric.timestamp}'
                 print( f'{metric.display_name} at {metric.timestamp_str} = {metric.value_str}' )

@@ -12,11 +12,12 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 /**
- * @file set_ADC.cpp
+ * @file command_ADC.cpp
  * @author Nestor Garcia (Nestor212@email.arizona.edu)
  * @brief Configures ADC registers with desired funtionality settings. Contains all
- * funtions relating to changing ADC settings and gathering data from the ADC.  
- * @version INW
+ * funtions relating to changing ADC settings, commanding ADC and gathering + converting
+ * raw data from the ADC.  
+ * @version (see THERMISTOR_MUX_VERSION in thermistorMux_global.h)
  * @date 2022-03-31
  *
  * @copyright Copyright (c) 2022

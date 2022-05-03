@@ -14,8 +14,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 /**
  * @file thermistorMux_hardware.cpp
  * @author Nestor Garcia (Nestor212@email.arizona.edu)
- * @brief Enables Device ID pins
- * @version INW
+ * @brief Function definition(s) for SPI & device ID initializtion.
+ * @version (see THERMISTOR_MUX_VERSION in thermistorMux_global.h)
  * @date 2022-04-19
  *
  * @copyright Copyright (c) 2022

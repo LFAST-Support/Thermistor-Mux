@@ -16,10 +16,10 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 /**
  * @file thermistorMux_network.cpp
- * @author Rory Scobie (scobier@arizona.edu)
+ * @author Nestor Garcia (Nestor212@email.arizona.edu)
  * @brief Implements networking specific functions, to handle Ethernet, MQTT,
  * Sparkplug, and NTP functionality.
- * Originally created for VCM module, modified by Nestor, for thermistor Mux use.
+ * Originally created for VCM module, modified for thermistor Mux use.
  * @version (see THERMISTOR_MUX_VERSION in thermistorMux_global.h)
  * @date 2022-04-19
  *
@@ -30,11 +30,11 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "thermistorMux_hardware.h"
 #include "thermistorMux_global.h"
 #include "thermistor_Mux.h"
+#include "cf_sparkplug.h"
 #include <NativeEthernet.h>
 #include <PubSubClient.h>
 #include <NTPClient_Generic.h>
 #include <sparkplugb_arduino.hpp>
-#include "cf_sparkplug.h"
 
 // Reset defines
 #ifndef RESTART_ADDR
@@ -53,7 +53,10 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #if defined(production_TEST)
 // MQTT broker definitions: TBD
-#define MQTT_BROKER1 169,254,141,48
+//Nestors office mosquitto broker
+//#define MQTT_BROKER1 169,254,141,48
+//Nestors laptop mosquitto broker
+#define MQTT_BROKER1 169,254,187,247
 #define MQTT_BROKER1_PORT 1883
 
 //NTP server address

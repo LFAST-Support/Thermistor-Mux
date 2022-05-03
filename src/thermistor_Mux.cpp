@@ -14,11 +14,11 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 /**
  * @file thermistor_Mux.cpp
  * @author Nestor Garcia (Nestor212@email.arizona.edu)
- * @brief Main file, complete code cycles through NUMBER_OF_THERMISTORS mosfets; each conencted to a thermistor,
+ * @brief Main file, complete code cycles through NUMBER_OF_THERMISTORS(32) mosfets; each conencted to a thermistor,
  * and uses ADC module MC3561R to convert analog to digital data. Internal temperature data of
- * ADC chip is also gathered. 
- * @version INW
- * @date 2022-03-31
+ * ADC chip is also gathered. This file contains a calibration routine & implements teensy EEPROM saving & clearing capabilities. 
+ * @version (see THERMISTOR_MUX_VERSION in thermistorMux_global.h)
+ * @date 2022-05-02
  *
  * @copyright Copyright (c) 2022
  */

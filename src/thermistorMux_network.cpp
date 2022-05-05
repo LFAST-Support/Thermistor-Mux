@@ -54,9 +54,10 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #if defined(production_TEST)
 // MQTT broker definitions: TBD
 //Nestors office mosquitto broker
-//#define MQTT_BROKER1 169,254,141,48
+#define MQTT_BROKER1 169,254,141,48
+
 //Nestors laptop mosquitto broker
-#define MQTT_BROKER1 169,254,187,247
+//#define MQTT_BROKER1 169,254,178,106
 #define MQTT_BROKER1_PORT 1883
 
 //NTP server address

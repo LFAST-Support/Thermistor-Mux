@@ -771,7 +771,7 @@ if option_no_GUI:
                 metric.value_str = f'{metric.value}'
                 metric.timestamp_str = f'{metric.timestamp}'
                 print( f'{metric.display_name} at {metric.timestamp_str} = {metric.value_str}' )
-                metric = find_metric(None, 'Node Contrl/Calibration INW')
+                metric = find_metric(None, 'Node Control/Calibration INW')
                 metric.value_str = f'{metric.value}'
                 metric.timestamp_str = f'{metric.timestamp}'
                 print( f'{metric.display_name} at {metric.timestamp_str} = {metric.value_str}' )

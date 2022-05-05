@@ -220,8 +220,8 @@ void loop() {
 
   //Cycle through mofets; setting digital control pin high, calls on 
   //function that sets mux register to read thermistor inputs.
-  //Takes average of 10 data values for each mosfet & internal temp, then resets data buffers.
-  while(avgCount < 10) {
+  //Takes average of 5 data values for each mosfet & internal temp, then resets data buffers.
+  while(avgCount < 5) {
     setThermistorMuxRead();
     delay(1);
     for(mosfetRef = 0; mosfetRef < NUMBER_OF_THERMISTORS; mosfetRef++) {

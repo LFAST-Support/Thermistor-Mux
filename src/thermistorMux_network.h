@@ -33,6 +33,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 bool network_init();
 void check_brokers();
 void publish_data(float* thermistor_data, float ADC_temperature);
+void publish_refs(float ref_Low, float ref_High);
 bool update_ntp();
 unsigned long get_current_time();
 unsigned long long get_current_time_millis();

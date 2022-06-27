@@ -461,9 +461,13 @@ def display_metrics( topic, payload, save_to_log ):
         if metric.value == None:
             metric.value_str = f'{metric.value}'
         elif metric.name.startswith( 'Inputs/THERMISTOR' ):
-            metric.value_str = f'{metric.value:.2f} °C'
+            metric.value_str = f'{metric.value:.3f} °C'
         elif metric.name == 'Inputs/ADC Internal Temperature':
             metric.value_str = f'{metric.value:.2f} °C'
+        elif metric.name == 'Node Control/Calibration Temperature 1':
+            metric.value_str = f'{metric.value:.2f}'
+        elif metric.name == 'Node Control/Calibration Temperature 2':
+            metric.value_str = f'{metric.value:.2f}'
         else:
             metric.value_str = f'{metric.value}'
 

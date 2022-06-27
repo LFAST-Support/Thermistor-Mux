@@ -48,7 +48,7 @@ mosfet[1] = header pin 1; mosfet Q2
 mosfet[31] = header pin 22; mosfet Q32
 */
 static unsigned int mosfet[NUMBER_OF_THERMISTORS] = {0,1,2,3,4,5,6,7,8,9,24,25,26,27,28,29,30,31,
-                                  NUMBER_OF_THERMISTORS,36,37,40,41,14,15,16,17,18,19,20,21,22};                                 
+                                  32,36,37,40,41,14,15,16,17,18,19,20,21,22};                                 
 static int irqFlag = 0;
 unsigned int eeAddr;
 bool setup_successful = false;
@@ -145,7 +145,7 @@ bool cal_thermistor(float ref_temp, int tempNum){
         EEPROM.put(eeAddr, raw_High[mosfetRef]);
         eeAddr += sizeof(raw_High[mosfetRef]); //Move address to the next byte after float 'f'.
     }
-
+    Serial.println(eeAddr);
     
     if (tempNum == 2) {
       EEPROM.write(0, 0x01);
@@ -206,6 +206,7 @@ void setup() {
       eeAddr_last = eeAddr_last + 2;
       mosfetRef++;
     }
+    publish_refs(ref_Low, ref_High);
   }
 }
 

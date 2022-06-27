@@ -12,11 +12,12 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 /**
- * @file set_ADC.cpp
+ * @file command_ADC.cpp
  * @author Nestor Garcia (Nestor212@email.arizona.edu)
  * @brief Configures ADC registers with desired funtionality settings. Contains all
- * funtions relating to changing ADC settings and gathering data from the ADC.  
- * @version INW
+ * funtions relating to changing ADC settings, commanding ADC and gathering + converting
+ * raw data from the ADC.  
+ * @version (see THERMISTOR_MUX_VERSION in thermistorMux_global.h)
  * @date 2022-03-31
  *
  * @copyright Copyright (c) 2022
@@ -70,7 +71,7 @@ COMMAND type                           - CMD[1:0]
                                 //     00 : Reserved = '00'
 #define CONFIG2_SET 0b10001111  // Config2 register byte: 0x03
                                 //     10 : Channel current x 1
-                                //    010 : Gain x 2
+                                //    001 : Gain x 1
                                 //      1 : Analog input multiplexer auto-zeroing algorithm enabled
                                 //     11 : Reserved = '11'
 #define CONFIG3_SET 0b10000000  // Config3 register byte: 0x04
@@ -101,22 +102,17 @@ COMMAND type                           - CMD[1:0]
                                 //      01 : Device address
                                 //    0000 : Register address 
                                 //      01 : Static Read   
-#define IRQ_READ 0b01010101 //Command byte: Read IRQ register data
-                                //      01 : Device address
-                                //    0101 : Register address 
-                                //      01 : Static Read   
-#define START_CONVERSION 0b01101000 
 #define V_REF_MUX_SET 0b10111100 // Multiplexer regiter byte: 0x06, set to read Vref
                                 //   1011 : REFIN+
-                                //   1100 : REFIN-  
+                                //   1100 : REFIN- 
+#define START_CONVERSION 0b01101000 // Fast Command
 /*
 Scan Register & Timer registers not used
 OffsetCal & GainCal registers not used
 */
 
-//Data bytes for debugging
+//Temporary ADC data storage buffer.
 static uint32_t temp_data_buff;
-//int myFlag = 0;
 
 /*
 Initializes ADC with desired settings(defined above). 
@@ -199,9 +195,12 @@ float read_ADCDATA() {
         temp_data_buff = (temp_data_buff & 0x00FFFFFF);
         if(MUX_REG_STATUS == 0x1701) {
             return convert_thermistor_temp(temp_data_buff);
+            //return convert_thermistor_temp(0x00FFFFFB);
+
         }
         else if(MUX_REG_STATUS == 0x17DE) {
-            return convert_internal_temp(temp_data_buff);
+           return convert_internal_temp(temp_data_buff);
+            //return convert_internal_temp(0x00FFFFFB);
         }
         else {
             Serial.println("Invalid data return.");
@@ -214,19 +213,21 @@ float read_ADCDATA() {
 /**
 Datasheet tranfer equation is for V_ref = 3.3 V & Gain = 1.
     Temp (C) = [0.00133 * ADCDATA(LSB)] - 267.146
-We are implementing V_ref = 2.4 V & Gain = 2.
+We are implementing V_ref = 2.4 V & Gain = 1.
     Temp (C) = [0.00133 * (V_ref/3.3V) * (ADCDATA(LSB))] - 267.146
 **/
 float convert_internal_temp(uint32_t masked_internal_data) {
+    int32_t internal_data = int32_t(masked_internal_data);
 
-     //Two's Complement conversion for negative ADC output data.
+    //Two's Complement conversion for negative ADC output data.
+    //Revisit: Might not be necessary, adc output should never be negative for thermistors??
     if(((masked_internal_data & 0x00FFFFFF) >> 23) == 1) {
-        masked_internal_data = -((masked_internal_data ^ 0xFFFFFF) + 1);
+       internal_data = -(int32_t((masked_internal_data ^ 0x00FFFFFF) + 1));
     }
     //ADC internal temp tranfer function for V_ref = 2.4V & Gain = 1  
-    float ADCtemp_Celsius = (0.00133 * (2.4/3.3) * (masked_internal_data)) - 267.146; 
+    float ADCtemp_Celsius = (0.00133 * (2.4/3.3) * (internal_data)) - 267.146; 
     //float ADCtemp_Farenheit = (ADCtemp_Celsius * (1.8)) + 32; // Celsius to Farenheit conversion
-     return(ADCtemp_Celsius);
+    return(ADCtemp_Celsius);
 }
 
 /**
@@ -246,17 +247,21 @@ https://www.tme.eu/Document/32a31570f1c819f9b3730213e5eca259/TT7-10KC3-11.pdf
 float convert_thermistor_temp(uint32_t masked_therm_data){
     float ADC_output_voltage;
     float thermistance;
+    int32_t therm_data = int32_t(masked_therm_data);
 
     //Two's Complement conversion for negative ADC output data.
-    if(((temp_data_buff & 0x00FFFFFF) >> 23) == 1) { 
-        masked_therm_data = -((masked_therm_data ^ 0xFFFFFF) + 1);
+    //Revisit: Might not be necessary, adc output should never be negative for thermistors??
+    if(((masked_therm_data & 0x00FFFFFF) >> 23) == 1) { 
+        Serial.println(masked_therm_data);
+        therm_data = -(int32_t((masked_therm_data ^ 0x00FFFFFF) + 1));
+        Serial.println(therm_data);
     }    
    
     //Converts ADC DATA output to measured voltage 
-    ADC_output_voltage  = (2.33 / pow(2,23)) * masked_therm_data;
+    ADC_output_voltage  = (2.33 / pow(2,23)) * therm_data;
     //Voltage divider, solving for measured thermistace
     thermistance = (ADC_output_voltage*10000)/(2.33 - ADC_output_voltage);
-    float stein_temp_Celsius = (1/((1/TEMPERATURENOMINAL) + BCOEFFICIENT*log(thermistance/THERMISTORNOMINAL))) - 272.15;
+    float stein_temp_Celsius = (1/((1/TEMPERATURENOMINAL) + BCOEFFICIENT*log(thermistance/THERMISTORNOMINAL))) - 273.15;
     //float stein_temp_Farenheit = (stein_temp_Celsius * (1.8)) + 32; 
 
     return(stein_temp_Celsius);

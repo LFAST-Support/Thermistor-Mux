@@ -16,10 +16,10 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 /**
  * @file thermistorMux_network.cpp
- * @author Rory Scobie (scobier@arizona.edu)
+ * @author Nestor Garcia (Nestor212@email.arizona.edu)
  * @brief Implements networking specific functions, to handle Ethernet, MQTT,
  * Sparkplug, and NTP functionality.
- * Originally created for VCM module, modified by Nestor, for thermistor Mux use.
+ * Originally created for VCM module, modified for thermistor Mux use.
  * @version (see THERMISTOR_MUX_VERSION in thermistorMux_global.h)
  * @date 2022-04-19
  *
@@ -30,11 +30,11 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "thermistorMux_hardware.h"
 #include "thermistorMux_global.h"
 #include "thermistor_Mux.h"
+#include "cf_sparkplug.h"
 #include <NativeEthernet.h>
 #include <PubSubClient.h>
 #include <NTPClient_Generic.h>
 #include <sparkplugb_arduino.hpp>
-#include "cf_sparkplug.h"
 
 // Reset defines
 #ifndef RESTART_ADDR
@@ -53,7 +53,21 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #if defined(production_TEST)
 // MQTT broker definitions: TBD
-#define MQTT_BROKER1 169,254,141,48
+//Nestors office mosquitto broker
+//#define MQTT_BROKER1 169,254,141,48
+
+//Nestors laptop mosquitto broker
+//#define MQTT_BROKER1 169,254,178,106
+
+//Desktop mosquitto broker
+//#define MQTT_BROKER1 169,254,141,48
+
+//LFAST Laptop mosquitto broker
+//#define MQTT_BROKER1 169,254,3,12
+
+//LFAST Laptop USB-C input 
+#define MQTT_BROKER1 169,254,32,245
+
 #define MQTT_BROKER1_PORT 1883
 
 //NTP server address
@@ -107,7 +121,6 @@ static uint64_t m_commsVersion        = COMMS_VERSION;
 static const char *m_firmwareVersion  = MUX_VERSION_COMPLETE;
 static float    m_calTemp1            = {0.0};
 static float    m_calTemp2            = {0.0};
-static float    m_calData[NUMBER_OF_THERMISTORS] = {0.00};
 static const char *m_units            = "°C";// The user units
 static float    m_THERMISTOR[NUMBER_OF_THERMISTORS] = {0.0};
 static float    m_ADC_temperature     = 0.0;
@@ -122,7 +135,6 @@ enum NodeMetricAlias {
     NMA_CalibrationStatus,
     NMA_CalibrationTemp1,
     NMA_CalibrationTemp2,
-    NMA_CalibrationData,
     NMA_CalibrationINW,
     NMA_CommsVersion,
     NMA_FirmwareVersion,
@@ -184,7 +196,6 @@ static MetricSpec NodeMetrics[] = {
     {"Properties/Communications Version",        NMA_CommsVersion,       false, METRIC_DATA_TYPE_INT64,   &m_commsVersion,       false, 0},
     {"Properties/Firmware Version",              NMA_FirmwareVersion,    false, METRIC_DATA_TYPE_STRING,  &m_firmwareVersion,    false, 0},
     {"Properties/Units",                         NMA_Units,              false, METRIC_DATA_TYPE_STRING,  &m_units,              false, 0},
-    {"Outputs/Calibration Data",                 NMA_CalibrationData,    false, METRIC_DATA_TYPE_FLOAT,   &m_calData[0],         false, 0},
     {"Inputs/THERMISTOR1",                       NMA_THERMISTOR1,        false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[0],      false, 0},
     {"Inputs/THERMISTOR2",                       NMA_THERMISTOR2,        false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[1],      false, 0},
     {"Inputs/THERMISTOR3",                       NMA_THERMISTOR3,        false, METRIC_DATA_TYPE_FLOAT,   &m_THERMISTOR[2],      false, 0},
@@ -232,6 +243,7 @@ void reset_teensy(){
 // Publish the NBIRTH message and the DBIRTH message for any devices, with all
 // metrics specified.
 void publish_births(){
+
     if (EEPROM.read(0) == 0x01) {
         m_nodeCalibrated = true;
     }
@@ -433,6 +445,8 @@ bool process_node_cmd_message(char* topic, byte* payload, unsigned int len){
         case NMA_ClearCal:
             if(clear_cal_data()) {
                 m_nodeCalibrated = false;
+                m_calTemp1 = 0.00;
+                m_calTemp2 = 0.00;
             }
             for(int br_idx = 0; br_idx < NUM_BROKERS; br_idx++){
                 set_up_next_payload();
@@ -530,6 +544,14 @@ void publish_data(float* THERMISTOR_data, float ADC_temperature){
     // Store new ADC temperature
     m_ADC_temperature = ADC_temperature;
     if(!update_metric(ARRAY_AND_SIZE(NodeMetrics), &m_ADC_temperature))
+        DebugPrint(cf_sparkplug_error);
+}
+void publish_refs(float ref_Low, float ref_High) {
+    m_calTemp1 = ref_Low;
+    if(!update_metric(ARRAY_AND_SIZE(NodeMetrics), &m_calTemp1))
+        DebugPrint(cf_sparkplug_error);
+    m_calTemp2 = ref_High;
+    if(!update_metric(ARRAY_AND_SIZE(NodeMetrics), &m_calTemp2))
         DebugPrint(cf_sparkplug_error);
 }
 
